@@ -3,6 +3,7 @@ package com.exe201.project.controller;
 import com.exe201.project.dto.request.AuthenticationRequest;
 import com.exe201.project.dto.response.ApiResponse;
 import com.exe201.project.dto.response.AuthenticationResponse;
+import com.exe201.project.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthenticationController {
 
-    private final IAuthenticationService authenticationService;
+    private final AuthenticationService authenticationService;
 
     @PostMapping("/login")
     public ApiResponse<AuthenticationResponse> loginUser(@RequestBody AuthenticationRequest request){
