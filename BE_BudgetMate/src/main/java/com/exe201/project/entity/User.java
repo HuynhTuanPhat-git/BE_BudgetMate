@@ -24,6 +24,10 @@ public class User {
     @Column(name = "full_name")
     String fullName;
 
+    String phone;
+
+    String address;
+
     @Email
     String email;
 
