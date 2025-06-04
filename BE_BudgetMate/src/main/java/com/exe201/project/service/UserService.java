@@ -2,6 +2,7 @@ package com.exe201.project.service;
 
 import com.exe201.project.dto.request.UserCreationRequest;
 import com.exe201.project.dto.response.UserResponse;
+import com.exe201.project.entity.User;
 import jakarta.mail.MessagingException;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,11 +16,10 @@ public interface UserService {
 
     UserResponse getAuthenticatedUserDTO();
 
-    UserResponse getAuthenticatedUser();
+    User getAuthenticatedUser();
 
-    UserResponse updateUserProfile(
-            String firstName,
-            String lastName,
+    public UserResponse updateUserProfile(
+            String fullName,
             String phone,
             String address,
             MultipartFile file
@@ -32,7 +32,6 @@ public interface UserService {
     void deactivateByUserId(int id);
     void activateByUserId(int id);
     void banByUserId(int id);
-    void unbanByUserId(int id);
 
     void forgotPassword(String email) throws MessagingException;
 

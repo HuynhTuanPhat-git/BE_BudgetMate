@@ -5,7 +5,6 @@ public record UserCreationRequest(
         String password,
         String fullName,
         String phone,
-        String address,
-        Long petId
+        String address
 ) {
 }

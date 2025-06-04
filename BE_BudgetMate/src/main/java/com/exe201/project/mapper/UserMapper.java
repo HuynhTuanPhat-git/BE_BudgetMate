@@ -17,6 +17,7 @@ public class UserMapper {
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .address(user.getAddress())
+                .avatar(user.getAvatar())
                 .streakDays(user.getStreakDays())
                 .lastLoginDate(user.getLastLoginDate())
                 .credits(user.getCredits())

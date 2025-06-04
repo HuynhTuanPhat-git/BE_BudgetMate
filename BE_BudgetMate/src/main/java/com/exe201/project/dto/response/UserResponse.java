@@ -18,6 +18,7 @@ public record UserResponse(
         String email,
         String phone,
         String address,
+        String avatar,
         Integer streakDays,
         LocalDateTime lastLoginDate,
         Integer credits,

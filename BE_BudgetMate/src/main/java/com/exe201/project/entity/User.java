@@ -34,6 +34,8 @@ public class User {
     @Column(unique = true, nullable = false)
     String password;
 
+    String avatar;
+
     @Column(name = "streak_days")
     Integer streakDays;
 

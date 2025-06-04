@@ -2,8 +2,14 @@ package com.exe201.project.service.impl;
 
 import com.exe201.project.configuration.security.jwt.JwtUtils;
 import com.exe201.project.configuration.security.jwt.UserDetailsImpl;
+import com.exe201.project.configuration.security.jwt.UserDetailsServiceImpl;
 import com.exe201.project.dto.request.AuthenticationRequest;
 import com.exe201.project.dto.response.AuthenticationResponse;
+import com.exe201.project.entity.User;
+import com.exe201.project.enums.UserStatus;
+import com.exe201.project.exception.InactiveUserException;
+import com.exe201.project.exception.ResourceNotFoundException;
+import com.exe201.project.repository.UserRepository;
 import com.exe201.project.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +27,15 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
     private final AuthenticationManager authenticationManager;
+
     private final JwtUtils jwtUtils;
+    private final UserRepository userRepository;
 
     @Override
     public AuthenticationResponse login(AuthenticationRequest request) {
+        User user = userRepository.findByEmail(request.email()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (user.getStatus().equals(UserStatus.INACTIVE))
+            throw new InactiveUserException("Account have not been activated yet!");
         Authentication authentication = authenticationManager
                 .authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
         SecurityContextHolder.getContext().setAuthentication(authentication);

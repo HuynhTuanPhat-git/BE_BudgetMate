@@ -99,6 +99,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InactiveUserException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ResponseEntity<ApiResponse<?>> handleInactiveUserExceptions(InactiveUserException ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.builder()
+                        .success(false)
+                        .message(ex.getMessage())
+                        .errorCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                        .build()
+        );
+    }
+
 
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
