@@ -24,11 +24,17 @@ public class User {
     @Column(name = "full_name")
     String fullName;
 
+    String phone;
+
+    String address;
+
     @Email
     String email;
 
     @Column(unique = true, nullable = false)
     String password;
+
+    String avatar;
 
     @Column(name = "streak_days")
     Integer streakDays;

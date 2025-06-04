@@ -32,9 +32,9 @@ public class SecurityConfig {
     private final AuthEntryPointJwt unauthorizedHandler;
 
     private static final List<String> SECURED_URLS = List.of(
-            "/user/p",
-            "/user/p/update",
-            "/user/p/update/password",
+            "/user/c",
+            "/user/c/update",
+            "/user/c/update/password",
             "/user/admin/**",
             "/admin/**"
     );
