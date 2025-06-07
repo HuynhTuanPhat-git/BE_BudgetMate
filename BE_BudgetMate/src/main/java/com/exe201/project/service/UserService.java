@@ -29,9 +29,11 @@ public interface UserService {
 
     List<UserResponse> getAllUsers();
 
-    void deactivateByUserId(int id);
-    void activateByUserId(int id);
-    void banByUserId(int id);
+    void deactivateByUserId(long id);
+
+    void activateByUserId(long id);
+
+    void banByUserId(long id);
 
     void forgotPassword(String email) throws MessagingException;
 
