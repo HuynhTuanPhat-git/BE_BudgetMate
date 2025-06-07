@@ -1,4 +1,4 @@
-package com.exe201.project.configuration;
+package com.exe201.project.configuration.security;
 
 import com.exe201.project.configuration.security.filter.AuthEntryPointJwt;
 import com.exe201.project.configuration.security.filter.AuthTokenFilter;
@@ -36,7 +36,8 @@ public class SecurityConfig {
             "/user/c/update",
             "/user/c/update/password",
             "/user/admin/**",
-            "/admin/**"
+            "/admin/**",
+            "/quizzes/**"
     );
 
     @Bean
