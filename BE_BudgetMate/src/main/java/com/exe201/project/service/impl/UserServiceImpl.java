@@ -52,7 +52,7 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.fullName());
         user.setPhone(request.phone());
         user.setAddress(request.address());
-        user.setStatus(UserStatus.INACTIVE);
+        user.setStatus(UserStatus.ACTIVE);
         Role role = roleRepository.findByName("ROLE_USER").orElseThrow(() -> new ResourceNotFoundException("Role not found"));
         user.setRole(role);
         User savedUser = userRepository.save(user);
@@ -136,21 +136,21 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void deactivateByUserId(int id) {
+    public void deactivateByUserId(long id) {
         User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
     }
 
     @Override
-    public void activateByUserId(int id) {
+    public void activateByUserId(long id) {
         User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
     }
 
     @Override
-    public void banByUserId(int id) {
+    public void banByUserId(long id) {
         User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setStatus(UserStatus.BANNED);
         userRepository.save(user);
