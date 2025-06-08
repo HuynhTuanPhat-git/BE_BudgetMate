@@ -52,9 +52,11 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.fullName());
         user.setPhone(request.phone());
         user.setAddress(request.address());
-        user.setStatus(UserStatus.ACTIVE);
+        user.setStatus(UserStatus.INACTIVE);
         Role role = roleRepository.findByName("ROLE_USER").orElseThrow(() -> new ResourceNotFoundException("Role not found"));
         user.setRole(role);
+        user.setCredits(0);
+        user.setStreakDays(0);
         User savedUser = userRepository.save(user);
         emailService.sendEmail(
                 savedUser.getEmail(),
