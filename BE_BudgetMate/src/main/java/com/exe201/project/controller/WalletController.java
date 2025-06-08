@@ -1,0 +1,116 @@
+package com.exe201.project.controller;
+
+import com.exe201.project.dto.request.WalletRequest;
+import com.exe201.project.dto.response.ApiResponse;
+import com.exe201.project.dto.response.WalletResponse;
+import com.exe201.project.entity.User;
+import com.exe201.project.enums.WalletType;
+import com.exe201.project.service.UserService;
+import com.exe201.project.service.WalletService;
+import jakarta.mail.MessagingException;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@CrossOrigin("*")
+@RestController
+@RequestMapping("/wallet")
+@RequiredArgsConstructor
+public class WalletController {
+    private final WalletService walletService;
+    private final UserService userService;
+
+    @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResponseEntity<ApiResponse<WalletResponse>> createWallet(@Valid @RequestBody WalletRequest request) throws MessagingException {
+        WalletResponse wallet = walletService.createWallet(request);
+        return ResponseEntity.ok(
+                ApiResponse.<WalletResponse>builder()
+                        .message("Wallet created successfully.")
+                        .data(wallet)
+                        .build()
+        );
+    }
+
+    @GetMapping()
+    public ResponseEntity<ApiResponse<?>> getAllWallet(){
+        List<WalletResponse> wallet = walletService.getAllWallet();
+        return ResponseEntity.ok(
+                ApiResponse.<List<WalletResponse>>builder()
+                        .message("All wallet retrieved successfully.")
+                        .data(wallet)
+                        .build()
+        );
+    }    @GetMapping("/{walletId}")
+    public ResponseEntity<ApiResponse<WalletResponse>> getWalletById(@PathVariable String walletId){
+        WalletResponse wallet = walletService.getDetailWallet(walletId);
+        return ResponseEntity.ok(
+                ApiResponse.<WalletResponse>builder()
+                        .message("Wallet data retrieved successfully.")
+                        .data(wallet)
+                        .build()
+        );
+    }
+
+    @PutMapping("/{walletId}")
+    public ResponseEntity<ApiResponse<WalletResponse>> updateWallet(@PathVariable String walletId, @RequestBody @Valid WalletRequest request){
+        WalletResponse wallet = walletService.updateWallet(walletId, request);
+        return ResponseEntity.ok(
+                ApiResponse.<WalletResponse>builder()
+                        .message("Wallet data updated successfully.")
+                        .data(wallet)
+                        .build()
+        );
+    }
+
+    @DeleteMapping("/{walletId}")
+    public ResponseEntity<ApiResponse<WalletResponse>> deleteWallet(@PathVariable String walletId){
+        walletService.deleteWallet(walletId);
+        return ResponseEntity.ok(
+                ApiResponse.<WalletResponse>builder()
+                        .message("Wallet deleted successfully.")
+                        .build()
+        );
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<List<WalletResponse>>> getWalletsByUserId(@PathVariable Long userId) {
+        List<WalletResponse> wallets = walletService.getWalletsByUserId(userId);
+        return ResponseEntity.ok(
+                ApiResponse.<List<WalletResponse>>builder()
+                        .message("User wallets retrieved successfully.")
+                        .data(wallets)
+                        .build()
+        );
+    }
+
+    @GetMapping("/total-balance")
+    public ResponseEntity<ApiResponse<Double>> getTotalBalance() {
+        // Get current user email from security context
+        Double totalBalance = walletService.getTotalBalance();
+
+        return ResponseEntity.ok(
+                ApiResponse.<Double>builder()
+                        .message("Total balance retrieved successfully.")
+                        .data(totalBalance)
+                        .build()
+        );
+    }
+
+    @GetMapping("/total-balance/{type}")
+    public ResponseEntity<ApiResponse<Double>> getTotalBalanceByType(@PathVariable String type) {
+        Double totalBalance = walletService.getTotalBalanceByType(type);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Double>builder()
+                        .message("Total balance by type retrieved successfully.")
+                        .data(totalBalance)
+                        .build()
+        );
+    }
+}
