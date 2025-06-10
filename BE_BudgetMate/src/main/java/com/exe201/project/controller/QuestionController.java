@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/questions")
+@RequestMapping("api/v1/questions")
 @RequiredArgsConstructor
 @Validated
 @Slf4j

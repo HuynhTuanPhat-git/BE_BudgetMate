@@ -20,9 +20,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("Invalid Username or Password"));
-        if(user.getStatus().equals("INACTIVE")){
+        if (user.getStatus().equals("INACTIVE")) {
             throw new RuntimeException("Account is not active");
-        }else if(user.getStatus().equals("BANNED")){
+        } else if (user.getStatus().equals("BANNED")) {
             throw new RuntimeException("Account is banned");
         }
         return UserDetailsImpl.build(user);

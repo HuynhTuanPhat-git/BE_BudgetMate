@@ -10,8 +10,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface WalletRepository extends JpaRepository<Wallets, Long> {
-    
-    List<Wallets> findByUserId(Long userId);
+
+    List<Wallets> findAllByUser_IdAndIsHiddenFalse(Long userId);
+
     
     List<Wallets> findByUserIdAndType(Long userId, WalletType type);
     
@@ -27,4 +28,5 @@ public interface WalletRepository extends JpaRepository<Wallets, Long> {
     Optional<Wallets> findByIdAndUserId(Long id, Long userId);
     
     boolean existsByUserIdAndName(Long userId, String name);
+
 }

@@ -29,8 +29,6 @@ public record WalletResponse(
 
         LocalDate deadline,
 
-        User user,
-
         List<Transaction> transactions
 ) {
     @Builder

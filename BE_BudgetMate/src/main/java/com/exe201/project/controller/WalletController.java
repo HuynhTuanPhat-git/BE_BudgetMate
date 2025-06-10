@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
 
 @CrossOrigin("*")
 @RestController
-@RequestMapping("/wallet")
+@RequestMapping("api/v1/wallet")
 @RequiredArgsConstructor
 public class WalletController {
     private final WalletService walletService;
@@ -46,7 +47,9 @@ public class WalletController {
                         .data(wallet)
                         .build()
         );
-    }    @GetMapping("/{walletId}")
+    }
+
+    @GetMapping("/{walletId}")
     public ResponseEntity<ApiResponse<WalletResponse>> getWalletById(@PathVariable String walletId){
         WalletResponse wallet = walletService.getDetailWallet(walletId);
         return ResponseEntity.ok(
@@ -102,9 +105,9 @@ public class WalletController {
         );
     }
 
-    @GetMapping("/total-balance/{type}")
-    public ResponseEntity<ApiResponse<Double>> getTotalBalanceByType(@PathVariable String type) {
-        Double totalBalance = walletService.getTotalBalanceByType(type);
+    @GetMapping("/total-balance/{walletType}")
+    public ResponseEntity<ApiResponse<Double>> getTotalBalanceByType(@PathVariable String walletType) {
+        Double totalBalance = walletService.getTotalBalanceByType(walletType);
 
         return ResponseEntity.ok(
                 ApiResponse.<Double>builder()

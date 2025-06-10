@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 public record TransactionRequest(
         
         @NotNull(message = "Amount is required")
-        @Min(value = 0, message = "Amount must be positive")
         Double amount,
         
         String description,

@@ -19,6 +19,8 @@ public class Category {
     Long id;
     
     String name;
+
+    boolean isDeleted = false;
     
     @OneToMany(mappedBy = "category")
     List<Transaction> transactions;

@@ -32,4 +32,6 @@ public class Transaction {
     @ManyToOne
     @JoinColumn(name = "wallet_id")
     Wallets wallet;
+
+    boolean isDeleted;
 }

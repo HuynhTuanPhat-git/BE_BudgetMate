@@ -8,6 +8,7 @@ import com.exe201.project.entity.Wallets;
 import com.exe201.project.enums.WalletType;
 import com.exe201.project.exception.InsufficientBalanceException;
 import com.exe201.project.exception.ResourceNotFoundException;
+import com.exe201.project.exception.WrongTypeException;
 import com.exe201.project.mapper.WalletMapper;
 import com.exe201.project.repository.TransactionRepository;
 import com.exe201.project.repository.UserRepository;
@@ -44,9 +45,15 @@ public class WalletServiceImpl implements WalletService {
         wallet.setName(request.name());
         wallet.setBalance(0.0); // Initial balance is 0
         wallet.setTargetAmount(request.targetAmount());
-        wallet.setInterestRate(request.interestRate());
-        wallet.setDeadline(request.deadline());
+        wallet.setInterestRate(request.interestRate() == 0.0 ? 0 : request.interestRate());
+        wallet.setDeadline(request.deadline() == null ? null : request.deadline());
+        if (request.type().equals(WalletType.DEFAULT) &&
+                (request.interestRate() != 0 ||
+                request.deadline() != null)) {
+            throw new WrongTypeException("Default wallet must not have interest rate and deadline");
+        }
         wallet.setUser(user);
+        wallet.setTransactions(null);
 
         Wallets savedWallet = walletRepository.save(wallet);
         return walletMapper.toWalletResponse(savedWallet);
@@ -56,7 +63,7 @@ public class WalletServiceImpl implements WalletService {
     public List<WalletResponse> getAllWallet() {
         User user = userService.getAuthenticatedUser();
         
-        List<Wallets> wallets = walletRepository.findByUserId(user.getId());
+        List<Wallets> wallets = walletRepository.findAllByUser_IdAndIsHiddenFalse(user.getId());
         return wallets.stream()
                 .map(walletMapper::toWalletResponse)
                 .collect(Collectors.toList());
@@ -89,7 +96,9 @@ public class WalletServiceImpl implements WalletService {
             throw new ResourceNotFoundException("Wallet not found");
         }
 
-        wallet.setType(request.type());
+        if (!request.type().equals(wallet.getType())) {
+            throw new WrongTypeException("Can not change wallet type.");
+        }
         wallet.setName(request.name());
         wallet.setTargetAmount(request.targetAmount());
         wallet.setInterestRate(request.interestRate());
@@ -111,12 +120,16 @@ public class WalletServiceImpl implements WalletService {
             throw new ResourceNotFoundException("Wallet not found");
         }
 
-        walletRepository.delete(wallet);
+        if (wallet.isHidden()) {
+            throw new IllegalArgumentException("Wallet is already hidden");
+        } else {
+            wallet.setHidden(true);
+        }
     }
 
     @Override
     public List<WalletResponse> getWalletsByUserId(Long userId) {
-        List<Wallets> wallets = walletRepository.findByUserId(userId);
+        List<Wallets> wallets = walletRepository.findAllByUser_IdAndIsHiddenFalse(userId);
         return wallets.stream()
                 .map(walletMapper::toWalletResponse)
                 .collect(Collectors.toList());
@@ -125,6 +138,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public Double getTotalBalance() {
         User user = userService.getAuthenticatedUser();
+
 
         Double totalBalance = walletRepository.getTotalBalanceByUserId(user.getId());
         totalBalance = totalBalance != null ? totalBalance : 0.0;

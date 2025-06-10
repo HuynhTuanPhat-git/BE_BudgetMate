@@ -130,9 +130,7 @@ public class TransactionServiceImpl implements TransactionService {
         // Update transaction
         transaction.setAmount(request.amount());
         transaction.setDescription(request.description());
-        if (request.transactionTime() != null) {
-            transaction.setTransactionTime(request.transactionTime());
-        }
+        transaction.setTransactionTime(request.transactionTime() != null ? request.transactionTime() : LocalDateTime.now());
 
         if (request.categoryId() != null) {
             Category category = categoryRepository.findById(request.categoryId())

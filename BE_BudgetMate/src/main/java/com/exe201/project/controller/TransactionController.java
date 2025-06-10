@@ -17,7 +17,7 @@ import java.util.List;
 
 @CrossOrigin("*")
 @RestController
-@RequestMapping("/transaction")
+@RequestMapping("api/v1/transaction")
 @RequiredArgsConstructor
 public class TransactionController {
     
