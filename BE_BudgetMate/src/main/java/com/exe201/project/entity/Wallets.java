@@ -41,4 +41,6 @@ public class Wallets {
     
     @OneToMany(mappedBy = "wallet")
     List<Transaction> transactions;
+
+    boolean isHidden;
 }
