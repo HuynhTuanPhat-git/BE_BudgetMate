@@ -39,7 +39,8 @@ public class SecurityConfig {
             "api/v1/admin/**",
             "api/v1/quizzes/**",
             "api/v1/wallet/**",
-            "api/v1/transaction/**"
+            "api/v1/transaction/**",
+            "api/v1/category/**"
     );
 
     @Bean
