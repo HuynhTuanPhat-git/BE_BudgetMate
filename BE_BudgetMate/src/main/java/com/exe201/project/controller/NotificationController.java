@@ -48,13 +48,16 @@ public class NotificationController {
         PagedResponse<NotificationResponse> pagedResponse = new PagedResponse<>(notificationsPage);
 
         return ResponseEntity.ok(ApiResponse.<PagedResponse<NotificationResponse>>builder()
-                .message("Active notifications retrieved successfully.")
+                .message("Notifications retrieved successfully.")
                 .data(pagedResponse)
                 .build());
     }
 
     @GetMapping("/unread-count")
-    @Operation(summary = "Get active unread notification count", description = "Retrieves the count of active unread notifications for the authenticated user.")
+    @Operation(
+            summary = "Get unread notification count",
+            description = "Retrieves the count of unread notifications for the authenticated user."
+    )
     public ResponseEntity<ApiResponse<Long>> getUnreadNotificationCount() {
         Long userId = authenticationUtil.getCurrentUserId();
         long count = notificationService.getActiveUnreadNotificationCount(userId);
@@ -65,7 +68,10 @@ public class NotificationController {
     }
 
     @PutMapping("/{notificationId}/read")
-    @Operation(summary = "Mark a notification as read", description = "Marks a specific notification as read for the authenticated user.")
+    @Operation(
+            summary = "Mark a notification as read",
+            description = "Marks a specific notification as read for the authenticated user."
+    )
     public ResponseEntity<ApiResponse<String>> markAsRead(@PathVariable UUID notificationId) {
         Long userId = authenticationUtil.getCurrentUserId();
         boolean success = notificationService.markNotificationAsRead(userId, notificationId);
@@ -83,7 +89,10 @@ public class NotificationController {
     }
 
     @PutMapping("/read-all")
-    @Operation(summary = "Mark all active notifications as read", description = "Marks all active unread notifications as read for the authenticated user.")
+    @Operation(
+            summary = "Mark all active notifications as read",
+            description = "Marks all active unread notifications as read for the authenticated user."
+    )
     public ResponseEntity<ApiResponse<String>> markAllAsRead() {
         Long userId = authenticationUtil.getCurrentUserId();
         int count = notificationService.markAllActiveNotificationsAsRead(userId);
@@ -93,8 +102,11 @@ public class NotificationController {
     }
 
     @DeleteMapping("/{notificationId}")
-    @Operation(summary = "Delete a notification", description = "Deletes a specific notification for the authenticated user.")
-    public ResponseEntity<ApiResponse<String>> softDeleteNotification(@PathVariable UUID notificationId) {
+    @Operation(
+            summary = "Delete a notification",
+            description = "Deletes a specific notification for the authenticated user."
+    )
+    public ResponseEntity<ApiResponse<String>> deleteNotification(@PathVariable UUID notificationId) {
         Long userId = authenticationUtil.getCurrentUserId();
         boolean success = notificationService.deleteNotification(userId, notificationId);
         if (success) {

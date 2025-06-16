@@ -18,7 +18,7 @@ public class NotificationMapper {
                 .type(notification.getType())
                 .dataPayload(notification.getDataPayload())
                 .isRead(notification.isRead())
-                .isActive(notification.isActive()) // Added
+                .isActive(notification.isActive())
                 .createdAt(notification.getCreatedAt())
                 .readAt(notification.getReadAt())
                 .build();

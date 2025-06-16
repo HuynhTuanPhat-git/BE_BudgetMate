@@ -41,30 +41,19 @@ public class QuizController {
             Authentication authentication,
             @Valid @RequestBody SubmitQuizRequest request) {
 
-        try {
-            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-            Long userId = (long) userDetails.getId();
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        Long userId = userDetails.getId();
 
-            QuizResultResponse result = quizService.submitQuizAnswer(userId, request);
+        QuizResultResponse result = quizService.submitQuizAnswer(userId, request);
 
-            String message = result.isCorrect() ?
-                    "Correct answer! Well done!" :
-                    "Incorrect answer. The correct answer is: " + result.correctAnswerText();
+        String message = result.isCorrect() ?
+                "Correct answer! Well done!" :
+                "Incorrect answer. The correct answer is: " + result.correctAnswerText();
 
-            return ResponseEntity.ok(ApiResponse.<QuizResultResponse>builder()
-                    .message(message)
-                    .data(result)
-                    .build());
-
-        } catch (Exception e) {
-            log.error("Error submitting quiz answer", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.<QuizResultResponse>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        }
+        return ResponseEntity.ok(ApiResponse.<QuizResultResponse>builder()
+                .message(message)
+                .data(result)
+                .build());
     }
 
     @GetMapping("/daily")
@@ -75,26 +64,15 @@ public class QuizController {
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> getDailyQuizQuestions(
             Authentication authentication) {
 
-        try {
-            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-            Long userId = (long) userDetails.getId();
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        Long userId = userDetails.getId();
 
-            List<QuestionResponse> questions = quizService.getDailyQuizQuestions(userId);
+        List<QuestionResponse> questions = quizService.getDailyQuizQuestions(userId);
 
-            return ResponseEntity.ok(ApiResponse.<List<QuestionResponse>>builder()
-                    .message("Daily quiz questions retrieved successfully")
-                    .data(questions)
-                    .build());
-
-        } catch (Exception e) {
-            log.error("Error getting daily quiz questions", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.<List<QuestionResponse>>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        }
+        return ResponseEntity.ok(ApiResponse.<List<QuestionResponse>>builder()
+                .message("Daily quiz questions retrieved successfully")
+                .data(questions)
+                .build());
     }
 
     @GetMapping("/status")
@@ -105,25 +83,14 @@ public class QuizController {
     public ResponseEntity<ApiResponse<DailyQuizStatusResponse>> getDailyQuizStatus(
             Authentication authentication) {
 
-        try {
-            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-            Long userId = (long) userDetails.getId();
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        Long userId = userDetails.getId();
 
-            DailyQuizStatusResponse status = quizService.getDailyQuizStatus(userId);
+        DailyQuizStatusResponse status = quizService.getDailyQuizStatus(userId);
 
-            return ResponseEntity.ok(ApiResponse.<DailyQuizStatusResponse>builder()
-                    .message("Daily quiz status retrieved successfully")
-                    .data(status)
-                    .build());
-
-        } catch (Exception e) {
-            log.error("Error getting daily quiz status", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.<DailyQuizStatusResponse>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        }
+        return ResponseEntity.ok(ApiResponse.<DailyQuizStatusResponse>builder()
+                .message("Daily quiz status retrieved successfully")
+                .data(status)
+                .build());
     }
 }
