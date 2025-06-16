@@ -1,0 +1,78 @@
+package com.exe201.project.service.impl;
+
+import com.exe201.project.dto.request.notification.CreateNotificationRequest;
+import com.exe201.project.entity.User;
+import com.exe201.project.enums.NotificationType;
+import com.exe201.project.enums.UserStatus;
+import com.exe201.project.repository.UserRepository;
+import com.exe201.project.service.INotificationService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class NotificationSchedulerService {
+
+    private final INotificationService notificationService;
+    private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
+
+    /**
+     * Gửi thông báo nhắc nhở làm quiz hằng ngày.
+     * Chạy vào 7:00 AM mỗi ngày.
+     * Cron expression: second, minute, hour, day of month, month, day(s) of week
+     * "0 0 7 * * ?" : 9:00:00 AM hàng ngày
+     */
+    @Scheduled(cron = "0 0 7 * * ?") // Chạy vào 7 giờ sáng mỗi ngày
+//    @Scheduled(cron = "0 * * * * ?") // Để test: chạy mỗi phút
+    public void sendDailyQuizReminders() {
+        log.info("Starting job: Send Daily Quiz Reminders");
+
+        List<User> activeUsers = userRepository.findAllByStatus(UserStatus.ACTIVE);
+
+        if (activeUsers.isEmpty()) {
+            log.info("No active users found to send daily quiz reminders.");
+            return;
+        }
+
+        String title = "Daily Quiz Reminder!";
+        String message = "Don't forget to complete your daily quiz and keep your streak going! \uD83D\uDCDD\uD83D\uDD25";
+
+        Map<String, String> payloadMap = new HashMap<>();
+        payloadMap.put("screen", "QuizSection");
+        payloadMap.put("action", "OPEN_DAILY_QUIZ");
+        String dataPayloadJson = null;
+        try {
+            dataPayloadJson = objectMapper.writeValueAsString(payloadMap);
+        } catch (JsonProcessingException e) {
+            log.error("Error converting dataPayload to JSON string for daily quiz reminder", e);
+        }
+
+        int successCount = 0;
+        for (User user : activeUsers) {
+            CreateNotificationRequest request = CreateNotificationRequest.builder()
+                    .userId(user.getId())
+                    .title(title)
+                    .message(message)
+                    .type(NotificationType.REMINDER)
+                    .dataPayload(dataPayloadJson)
+                    .build();
+            try {
+                notificationService.createNotification(request);
+                successCount++;
+            } catch (Exception e) {
+                log.error("Failed to create daily quiz reminder for user {}: {}", user.getId(), e.getMessage());
+            }
+        }
+        log.info("Finished job: Send Daily Quiz Reminders. Sent {} notifications.", successCount);
+    }
+}
