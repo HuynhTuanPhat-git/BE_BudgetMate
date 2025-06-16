@@ -4,6 +4,7 @@ import com.exe201.project.dto.request.question.CreateQuestionRequest;
 import com.exe201.project.dto.request.question.QuestionSearchRequest;
 import com.exe201.project.dto.request.question.UpdateQuestionRequest;
 import com.exe201.project.dto.response.ApiResponse;
+import com.exe201.project.dto.response.PagedResponse;
 import com.exe201.project.dto.response.question.QuestionResponse;
 import com.exe201.project.service.QuestionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,22 +42,11 @@ public class QuestionController {
     )
     public ResponseEntity<ApiResponse<QuestionResponse>> createQuestion(
             @Valid @RequestBody CreateQuestionRequest request) {
-
-        try {
-            QuestionResponse response = questionService.createQuestion(request);
-            return ResponseEntity.ok(ApiResponse.<QuestionResponse>builder()
-                    .message("Question created successfully")
-                    .data(response)
-                    .build());
-        } catch (Exception e) {
-            log.error("Error creating question", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.<QuestionResponse>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        }
+        QuestionResponse response = questionService.createQuestion(request);
+        return ResponseEntity.ok(ApiResponse.<QuestionResponse>builder()
+                .message("Question created successfully")
+                .data(response)
+                .build());
     }
 
     @GetMapping
@@ -64,7 +54,7 @@ public class QuestionController {
             summary = "Get questions",
             description = "Search and filter questions with pagination (Admin only)."
     )
-    public ResponseEntity<ApiResponse<Page<QuestionResponse>>> getQuestions(
+    public ResponseEntity<ApiResponse<PagedResponse<QuestionResponse>>> getQuestions(
             @Parameter(description = "Search keyword")
             @RequestParam(required = false) String keyword,
             @Parameter(description = "Sort field", example = "createdAt")
@@ -76,30 +66,22 @@ public class QuestionController {
             @Parameter(description = "Page size", example = "10")
             @RequestParam(defaultValue = "10") Integer size) {
 
-        try {
-            QuestionSearchRequest request = QuestionSearchRequest.builder()
-                    .keyword(keyword)
-                    .isActive(true)
-                    .sortBy(sortBy)
-                    .sortDirection(sortDirection)
-                    .page(page)
-                    .size(size)
-                    .build();
+        QuestionSearchRequest request = QuestionSearchRequest.builder()
+                .keyword(keyword)
+                .isActive(true)
+                .sortBy(sortBy)
+                .sortDirection(sortDirection)
+                .page(page)
+                .size(size)
+                .build();
 
-            Page<QuestionResponse> response = questionService.getQuestions(request);
-            return ResponseEntity.ok(ApiResponse.<Page<QuestionResponse>>builder()
-                    .message("Active questions retrieved successfully")
-                    .data(response)
-                    .build());
-        } catch (Exception e) {
-            log.error("Error searching active questions", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.<Page<QuestionResponse>>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        }
+        Page<QuestionResponse> response = questionService.getQuestions(request);
+        PagedResponse<QuestionResponse> pagedResponse = new PagedResponse<>(response);
+
+        return ResponseEntity.ok(ApiResponse.<PagedResponse<QuestionResponse>>builder()
+                .message("Questions retrieved successfully")
+                .data(pagedResponse)
+                .build());
     }
 
     @GetMapping("/{questionId}")
@@ -110,21 +92,11 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestion(
             @Parameter(description = "Question ID", required = true)
             @PathVariable UUID questionId) {
-        try {
-            QuestionResponse response = questionService.getQuestionById(questionId);
-            return ResponseEntity.ok(ApiResponse.<QuestionResponse>builder()
-                    .message("Question retrieved successfully")
-                    .data(response)
-                    .build());
-        } catch (Exception e) {
-            log.error("Error getting question", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.<QuestionResponse>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        }
+        QuestionResponse response = questionService.getQuestionById(questionId);
+        return ResponseEntity.ok(ApiResponse.<QuestionResponse>builder()
+                .message("Question retrieved successfully")
+                .data(response)
+                .build());
     }
 
     @PutMapping("/{questionId}")
@@ -136,22 +108,11 @@ public class QuestionController {
             @Parameter(description = "Question ID", required = true)
             @PathVariable UUID questionId,
             @Valid @RequestBody UpdateQuestionRequest request) {
-
-        try {
-            QuestionResponse response = questionService.updateQuestion(questionId, request);
-            return ResponseEntity.ok(ApiResponse.<QuestionResponse>builder()
-                    .message("Question updated successfully")
-                    .data(response)
-                    .build());
-        } catch (Exception e) {
-            log.error("Error updating question", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.<QuestionResponse>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        }
+        QuestionResponse response = questionService.updateQuestion(questionId, request);
+        return ResponseEntity.ok(ApiResponse.<QuestionResponse>builder()
+                .message("Question updated successfully")
+                .data(response)
+                .build());
     }
 
     @DeleteMapping("/{questionId}")
@@ -162,20 +123,10 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<String>> deleteQuestion(
             @Parameter(description = "Question ID", required = true)
             @PathVariable UUID questionId) {
-        try {
-            questionService.deleteQuestion(questionId);
-            return ResponseEntity.ok(ApiResponse.<String>builder()
-                    .message("Question deleted successfully")
-                    .data("Question has been deactivated")
-                    .build());
-        } catch (Exception e) {
-            log.error("Error deleting question", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.<String>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        }
+        questionService.deleteQuestion(questionId);
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .message("Question deleted successfully")
+                .data("Question has been deactivated")
+                .build());
     }
 }

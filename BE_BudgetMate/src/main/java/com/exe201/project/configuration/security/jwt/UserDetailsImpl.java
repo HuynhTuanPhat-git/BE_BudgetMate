@@ -20,7 +20,7 @@ import java.util.List;
 public class UserDetailsImpl implements UserDetails {
 
     private static final long serialVersionUID = 1L;
-    private int id;
+    private Long id;
     private String username;
     @JsonIgnore
     private String password;
@@ -28,7 +28,7 @@ public class UserDetailsImpl implements UserDetails {
 
     public static UserDetailsImpl build(User user) {
         GrantedAuthority authority = new SimpleGrantedAuthority(user.getRole().getName());
-        return new UserDetailsImpl(Math.toIntExact(user.getId()), user.getEmail(), user.getPassword(), List.of(authority));
+        return new UserDetailsImpl((long) Math.toIntExact(user.getId()), user.getEmail(), user.getPassword(), List.of(authority));
     }
 
     @Override
