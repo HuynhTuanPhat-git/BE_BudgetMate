@@ -60,7 +60,7 @@ public class NotificationController {
     )
     public ResponseEntity<ApiResponse<Long>> getUnreadNotificationCount() {
         Long userId = authenticationUtil.getCurrentUserId();
-        long count = notificationService.getActiveUnreadNotificationCount(userId);
+        long count = notificationService.getUnreadNotificationCount(userId);
         return ResponseEntity.ok(ApiResponse.<Long>builder()
                 .message("Active unread notification count retrieved successfully.")
                 .data(count)
