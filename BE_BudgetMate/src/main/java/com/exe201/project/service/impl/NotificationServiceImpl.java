@@ -64,7 +64,7 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    public long getActiveUnreadNotificationCount(Long userId) {
+    public long getUnreadNotificationCount(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         return notificationRepository.countByUserAndIsActiveTrueAndIsReadFalse(user);

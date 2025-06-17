@@ -10,7 +10,7 @@ import java.util.UUID;
 public interface INotificationService {
     NotificationResponse createNotification(CreateNotificationRequest request);
     Page<NotificationResponse> getNotificationsForUser(Long userId, Boolean unreadOnly, Pageable pageable);
-    long getActiveUnreadNotificationCount(Long userId);
+    long getUnreadNotificationCount(Long userId);
     boolean markNotificationAsRead(Long userId, UUID notificationId);
     int markAllNotificationsAsRead(Long userId);
     boolean deleteNotification(Long userId, UUID notificationId);
