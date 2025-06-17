@@ -50,7 +50,7 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<NotificationResponse> getActiveNotificationsForUser(Long userId, Boolean unreadOnly, Pageable pageable) {
+    public Page<NotificationResponse> getNotificationsForUser(Long userId, Boolean unreadOnly, Pageable pageable) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         Page<Notification> notificationsPage;
@@ -91,7 +91,7 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     @Transactional
-    public int markAllActiveNotificationsAsRead(Long userId) {
+    public int markAllNotificationsAsRead(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         int count = notificationRepository.markAllActiveAsReadForUser(user);

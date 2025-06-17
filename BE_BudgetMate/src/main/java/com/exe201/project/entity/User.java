@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Email;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -38,6 +39,9 @@ public class User {
 
     @Column(name = "streak_days")
     Integer streakDays;
+
+    @Column(name = "last_check_in_date")
+    LocalDate lastCheckInDate;
 
     @Column(name = "last_login_date")
     LocalDateTime lastLoginDate;

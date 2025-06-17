@@ -44,7 +44,7 @@ public class NotificationController {
         Long userId = authenticationUtil.getCurrentUserId();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Page<NotificationResponse> notificationsPage = notificationService.getActiveNotificationsForUser(userId, unreadOnly, pageable);
+        Page<NotificationResponse> notificationsPage = notificationService.getNotificationsForUser(userId, unreadOnly, pageable);
         PagedResponse<NotificationResponse> pagedResponse = new PagedResponse<>(notificationsPage);
 
         return ResponseEntity.ok(ApiResponse.<PagedResponse<NotificationResponse>>builder()
@@ -90,12 +90,12 @@ public class NotificationController {
 
     @PutMapping("/read-all")
     @Operation(
-            summary = "Mark all active notifications as read",
-            description = "Marks all active unread notifications as read for the authenticated user."
+            summary = "Mark all notifications as read",
+            description = "Marks all unread notifications as read for the authenticated user."
     )
     public ResponseEntity<ApiResponse<String>> markAllAsRead() {
         Long userId = authenticationUtil.getCurrentUserId();
-        int count = notificationService.markAllActiveNotificationsAsRead(userId);
+        int count = notificationService.markAllNotificationsAsRead(userId);
         return ResponseEntity.ok(ApiResponse.<String>builder()
                 .message(count + " active notifications marked as read.")
                 .build());

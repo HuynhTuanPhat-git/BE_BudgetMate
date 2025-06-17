@@ -26,13 +26,7 @@ public class NotificationSchedulerService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Gửi thông báo nhắc nhở làm quiz hằng ngày.
-     * Chạy vào 7:00 AM mỗi ngày.
-     * Cron expression: second, minute, hour, day of month, month, day(s) of week
-     * "0 0 7 * * ?" : 9:00:00 AM hàng ngày
-     */
-    @Scheduled(cron = "0 0 7 * * ?") // Chạy vào 7 giờ sáng mỗi ngày
+    @Scheduled(cron = "0 0 7 * * ?")
 //    @Scheduled(cron = "0 * * * * ?") // Để test: chạy mỗi phút
     public void sendDailyQuizReminders() {
         log.info("Starting job: Send Daily Quiz Reminders");
