@@ -9,6 +9,7 @@ public record AnswerResponse(
         UUID id,
         String answerText,
         Integer displayOrder,
+        Boolean isCorrect,
         Boolean isActive
 ) {
 }
