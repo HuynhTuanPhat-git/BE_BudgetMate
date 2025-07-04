@@ -1,6 +1,7 @@
 package com.exe201.project.repository;
 
 import com.exe201.project.entity.Transaction;
+import com.exe201.project.entity.Wallets;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,4 +25,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     
     @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.wallet.id = :walletId AND t.amount < 0")
     Double getTotalExpenseByWalletId(@Param("walletId") Long walletId);
+
+    List<Transaction> findByWalletAndTransactionTimeBetweenAndIsDeletedFalse(
+            Wallets wallet, LocalDateTime startTime, LocalDateTime endTime);
 }
