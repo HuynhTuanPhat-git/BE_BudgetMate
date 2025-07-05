@@ -1,4 +1,4 @@
-package com.exe201.project.service.impl;
+package com.exe201.project.scheduler;
 
 import com.exe201.project.entity.User;
 import com.exe201.project.repository.UserRepository;
@@ -14,7 +14,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class StreakResetSchedulerService {
+public class StreakResetScheduler {
 
     private final UserRepository userRepository;
 

@@ -1,4 +1,4 @@
-package com.exe201.project.service.impl;
+package com.exe201.project.scheduler;
 
 import com.exe201.project.dto.request.notification.CreateNotificationRequest;
 import com.exe201.project.entity.User;
@@ -21,7 +21,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class NotificationSchedulerService {
+public class NotificationScheduler {
 
     private final INotificationService notificationService;
     private final UserRepository userRepository;
