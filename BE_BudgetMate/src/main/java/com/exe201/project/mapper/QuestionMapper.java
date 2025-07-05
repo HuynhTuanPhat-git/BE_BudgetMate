@@ -25,6 +25,7 @@ public class QuestionMapper {
                 .id(answer.getId())
                 .answerText(answer.getAnswerText())
                 .displayOrder(answer.getDisplayOrder())
+                .isCorrect(answer.getIsCorrect())
                 .isActive(answer.getIsActive())
                 .build();
     }
