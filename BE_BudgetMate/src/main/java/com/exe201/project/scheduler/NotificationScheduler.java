@@ -28,6 +28,7 @@ public class NotificationScheduler {
     private final ObjectMapper objectMapper;
 
     @Scheduled(cron = "0 0 7 * * ?")
+    //@Scheduled(cron = "0 */2 * * * ?") // Chạy mỗi 2 phút để test
     public void sendDailyQuizReminders() {
         log.info("Starting job: Send Daily Quiz Reminders");
 
