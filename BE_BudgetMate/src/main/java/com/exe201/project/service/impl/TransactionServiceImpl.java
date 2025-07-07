@@ -127,18 +127,27 @@ public class TransactionServiceImpl implements TransactionService {
         Wallets wallet = transaction.getWallet();
         wallet.setBalance(wallet.getBalance() - transaction.getAmount() + request.amount());
 
-        // Update transaction
-        transaction.setAmount(request.amount());
-        transaction.setDescription(request.description());
-        transaction.setTransactionTime(request.transactionTime() != null ? request.transactionTime() : LocalDateTime.now());
+        Transaction deleteTransaction = new Transaction();
+        deleteTransaction.setWallet(wallet);
+        deleteTransaction.setAmount(-transaction.getAmount());
+        deleteTransaction.setDescription(transaction.getDescription());
+        deleteTransaction.setCategory(categoryRepository.findByName("TRANSACTION REFACTOR")
+                .orElseThrow(() -> {
+            throw new ResourceNotFoundException("Category not found");
+        }));
+        transactionRepository.save(deleteTransaction);
 
+        Transaction addTransaction = new Transaction();
+        addTransaction.setWallet(wallet);
+        addTransaction.setAmount(request.amount());
+        addTransaction.setDescription(request.description());
+        addTransaction.setTransactionTime(request.transactionTime() != null ? request.transactionTime() : LocalDateTime.now());
         if (request.categoryId() != null) {
             Category category = categoryRepository.findById(request.categoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-            transaction.setCategory(category);
+            addTransaction.setCategory(category);
         }
-
-        Transaction updatedTransaction = transactionRepository.save(transaction);
+        Transaction updatedTransaction = transactionRepository.save(addTransaction);
         walletRepository.save(wallet);
         
         return transactionMapper.toTransactionResponse(updatedTransaction);
@@ -158,9 +167,19 @@ public class TransactionServiceImpl implements TransactionService {
         // Update wallet balance by reversing the transaction
         Wallets wallet = transaction.getWallet();
         wallet.setBalance(wallet.getBalance() - transaction.getAmount());
-        
+
+        Transaction deleteTransaction = new Transaction();
+        deleteTransaction.setWallet(wallet);
+        deleteTransaction.setAmount(-transaction.getAmount());
+        deleteTransaction.setDescription(transaction.getDescription());
+        deleteTransaction.setCategory(categoryRepository.findByName("TRANSACTION REFACTOR")
+                .orElseThrow(() -> {
+                    throw new ResourceNotFoundException("Category not found");
+                }));
+
         walletRepository.save(wallet);
-        transactionRepository.delete(transaction);
+        transactionRepository.save(deleteTransaction);
+
     }
 
     @Override

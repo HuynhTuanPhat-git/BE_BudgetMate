@@ -20,6 +20,8 @@ public class Category {
     
     String name;
 
+    String color;
+
     boolean isDeleted = false;
     
     @OneToMany(mappedBy = "category")

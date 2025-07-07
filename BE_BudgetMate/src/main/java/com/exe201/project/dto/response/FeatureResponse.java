@@ -3,9 +3,11 @@ package com.exe201.project.dto.response;
 import lombok.Builder;
 
 @Builder
-public record CategoryResponse(
+public record FeatureResponse(
         Long id,
         String name,
-        String color
+        String description,
+        String featureKey,
+        Boolean isActive
 ) {
 }

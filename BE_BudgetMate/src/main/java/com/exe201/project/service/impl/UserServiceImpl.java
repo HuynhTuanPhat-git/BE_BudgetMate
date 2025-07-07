@@ -3,25 +3,29 @@ package com.exe201.project.service.impl;
 import com.exe201.project.configuration.security.jwt.JwtUtils;
 import com.exe201.project.dto.request.UserCreationRequest;
 import com.exe201.project.dto.response.UserResponse;
-import com.exe201.project.entity.Role;
-import com.exe201.project.entity.User;
+import com.exe201.project.entity.*;
+import com.exe201.project.enums.SubscriptionStatus;
 import com.exe201.project.enums.UserStatus;
+import com.exe201.project.enums.WalletType;
 import com.exe201.project.exception.ResourceAlreadyExistException;
 import com.exe201.project.exception.ResourceNotFoundException;
 import com.exe201.project.mapper.UserMapper;
-import com.exe201.project.repository.RoleRepository;
-import com.exe201.project.repository.UserRepository;
+import com.exe201.project.repository.*;
 import com.exe201.project.service.CloudinaryService;
 import com.exe201.project.service.EmailService;
+import com.exe201.project.service.SubscriptionService;
 import com.exe201.project.service.UserService;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +33,8 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -38,6 +44,7 @@ public class UserServiceImpl implements UserService {
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
     private final CloudinaryService cloudinaryService;
+    private final SubscriptionService subscriptionService;
 
     @Override
     public UserResponse register(UserCreationRequest request) throws MessagingException {
@@ -58,6 +65,10 @@ public class UserServiceImpl implements UserService {
         user.setCredits(0);
         user.setStreakDays(0);
         User savedUser = userRepository.save(user);
+
+        // Create Basic membership subscription for new user
+        subscriptionService.createBasicMembershipForUser(savedUser);
+
         emailService.sendEmail(
                 savedUser.getEmail(),
                 emailService.subjectRegister(),

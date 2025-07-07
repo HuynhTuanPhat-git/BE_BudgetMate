@@ -29,4 +29,5 @@ public interface WalletRepository extends JpaRepository<Wallets, Long> {
     
     boolean existsByUserIdAndName(Long userId, String name);
 
+    List<Wallets> findAllByUserId(Long id);
 }

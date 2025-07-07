@@ -1,7 +1,5 @@
 package com.exe201.project.entity;
 
-import com.exe201.project.enums.DurationType;
-import com.exe201.project.enums.Status;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -15,27 +13,23 @@ import java.util.List;
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class MembershipPlan {
+public class Feature {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     Long id;
     
+    @Column(unique = true, nullable = false)
     String name;
     
+    @Column(nullable = false)
     String description;
     
-    Double price;
+    @Column(name = "feature_key", unique = true, nullable = false)
+    String featureKey; // Unique identifier for feature (e.g., "CREATE_MULTIPLE_WALLETS")
     
-    Double duration; // in months
-
-    DurationType type;
-
-    @Enumerated(EnumType.STRING)
-    Status status;
+    @Column(name = "is_active")
+    Boolean isActive = true;
     
-    @OneToMany(mappedBy = "membershipPlan")
-    List<Subscription> subscriptions;
-    
-    @OneToMany(mappedBy = "membershipPlan", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "feature", cascade = CascadeType.ALL, orphanRemoval = true)
     List<MembershipFeature> membershipFeatures;
 }
