@@ -56,7 +56,7 @@ public class WalletServiceImpl implements WalletService {
         if (walletLimit != null && walletLimit == 3) {
             // Basic plan: check if user already has a wallet of this type
             boolean hasWalletOfType = existingWallets.stream()
-                    .anyMatch(wallet -> wallet.getType().equals(request.type()) && !wallet.isHidden());
+                    .anyMatch(wallet -> wallet.getType().equals(request.type()));
             
             if (hasWalletOfType) {
                 throw new OutOfPermissionException("You already have a " + request.type() + " wallet. Basic plan allows only 1 wallet of each type (DEFAULT, DEBT, SAVINGS).");
