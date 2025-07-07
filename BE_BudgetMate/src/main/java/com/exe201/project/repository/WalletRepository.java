@@ -1,5 +1,6 @@
 package com.exe201.project.repository;
 
+import com.exe201.project.entity.User;
 import com.exe201.project.entity.Wallets;
 import com.exe201.project.enums.WalletType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,4 +31,5 @@ public interface WalletRepository extends JpaRepository<Wallets, Long> {
     boolean existsByUserIdAndName(Long userId, String name);
 
     List<Wallets> findAllByUserId(Long id);
+    Optional<Wallets> findByUserAndType(User user, WalletType type);
 }
