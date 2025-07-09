@@ -3,6 +3,7 @@ package com.exe201.project.service;
 import com.exe201.project.dto.request.SubscriptionRequest;
 import com.exe201.project.dto.response.SubscriptionResponse;
 import com.exe201.project.entity.User;
+import com.exe201.project.entity.Subscription;
 
 import java.util.List;
 
@@ -37,4 +38,20 @@ public interface SubscriptionService {
      * Check and update expired subscriptions (scheduled task)
      */
     void updateExpiredSubscriptions();
+    
+    /**
+     * Set auto-renewal success rate for testing (0.0 to 1.0)
+     */
+    void setAutoRenewalSuccessRate(double successRate);
+    
+    /**
+     * Attempt to auto-renew a subscription
+     * Returns true if successful, false if failed
+     */
+    boolean attemptAutoRenewal(Subscription subscription);
+    
+    /**
+     * Fallback to Basic plan when auto-renewal fails
+     */
+    void fallbackToBasicPlan(User user, String reason);
 }

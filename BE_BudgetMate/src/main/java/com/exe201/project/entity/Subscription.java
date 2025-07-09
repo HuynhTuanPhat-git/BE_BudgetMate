@@ -37,6 +37,9 @@ public class Subscription {
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status")
     PaymentStatus paymentStatus;
+
+    @Column(name = "order_code")
+    String orderCode;
     
     @ManyToOne
     @JoinColumn(name = "membership_plan_id")

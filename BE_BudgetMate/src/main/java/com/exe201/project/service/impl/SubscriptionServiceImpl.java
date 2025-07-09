@@ -39,6 +39,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final WalletRepository walletRepository;
     private final SubscriptionMapper subscriptionMapper;
     
+    // Configurable success rate for auto-renewal (default 80%)
+    private double autoRenewalSuccessRate = 0.8;
+    
     @Override
     public SubscriptionResponse subscribeToMembership(Long membershipPlanId, SubscriptionRequest request) {
         // Get current authenticated user from security context
@@ -159,10 +162,28 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .findExpiredActiveSubscriptions(LocalDate.now());
         
         for (Subscription subscription : expiredSubscriptions) {
-            subscription.setStatus(SubscriptionStatus.EXPIRED);
-            subscriptionRepository.save(subscription);
-            log.info("Marked subscription {} as EXPIRED for user {}", 
-                    subscription.getId(), subscription.getUser().getEmail());
+            // Skip Basic plan (it shouldn't expire)
+            if ("Basic".equals(subscription.getMembershipPlan().getName())) {
+                continue;
+            }
+            
+            // Attempt auto-renewal first
+            boolean renewalSuccessful = attemptAutoRenewal(subscription);
+            
+            if (renewalSuccessful) {
+                log.info("Successfully auto-renewed subscription {} for user {}", 
+                        subscription.getId(), subscription.getUser().getEmail());
+            } else {
+                // Mark current subscription as expired
+                subscription.setStatus(SubscriptionStatus.EXPIRED);
+                subscriptionRepository.save(subscription);
+                
+                // Fallback to Basic plan
+                fallbackToBasicPlan(subscription.getUser(), "Auto-renewal failed");
+                
+                log.warn("Auto-renewal failed for subscription {}. User {} reverted to Basic plan", 
+                        subscription.getId(), subscription.getUser().getEmail());
+            }
         }
         
         if (!expiredSubscriptions.isEmpty()) {
@@ -186,43 +207,95 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         return !walletRepository.findAllByUserId(userId).isEmpty();
     }
     
-    private void createDefaultWalletsForUser(User user) {
-        // Create DEFAULT wallet
-        Wallets defaultWallet = new Wallets();
-        defaultWallet.setName("My Wallet");
-        defaultWallet.setType(WalletType.DEFAULT);
-        defaultWallet.setBalance(0.0);
-        defaultWallet.setTargetAmount(0.0);
-        defaultWallet.setInterestRate(0.0);
-        defaultWallet.setDeadline(null);
-        defaultWallet.setUser(user);
-        defaultWallet.setHidden(false);
-        walletRepository.save(defaultWallet);
-
-        // Create DEBT wallet
-        Wallets debtWallet = new Wallets();
-        debtWallet.setName("Debt Tracker");
-        debtWallet.setType(WalletType.DEBT);
-        debtWallet.setBalance(0.0);
-        debtWallet.setTargetAmount(0.0); // Goal to pay off debt
-        debtWallet.setInterestRate(0.0);
-        debtWallet.setDeadline(null);
-        debtWallet.setUser(user);
-        debtWallet.setHidden(false);
-        walletRepository.save(debtWallet);
-
-        // Create SAVINGS wallet
-        Wallets savingsWallet = new Wallets();
-        savingsWallet.setName("Savings Goal");
-        savingsWallet.setType(WalletType.SAVINGS);
-        savingsWallet.setBalance(0.0);
-        savingsWallet.setTargetAmount(1000000.0); // Default savings goal
-        savingsWallet.setInterestRate(0.0);
-        savingsWallet.setDeadline(LocalDate.now().plusYears(1)); // 1 year goal
-        savingsWallet.setUser(user);
-        savingsWallet.setHidden(false);
-        walletRepository.save(savingsWallet);
-
-        log.info("Created default wallets (DEFAULT, DEBT, SAVINGS) for user: {}", user.getEmail());
+    @Override
+    public boolean attemptAutoRenewal(Subscription subscription) {
+        try {
+            // Simulate payment processing
+            boolean paymentSuccessful = processPayment(subscription);
+            
+            if (paymentSuccessful) {
+                // Create new subscription with same plan
+                Subscription newSubscription = new Subscription();
+                newSubscription.setUser(subscription.getUser());
+                newSubscription.setMembershipPlan(subscription.getMembershipPlan());
+                newSubscription.setStartDate(LocalDate.now());
+                
+                // Calculate new end date based on membership plan duration
+                Double duration = subscription.getMembershipPlan().getDuration();
+                if (duration == 0.0) {
+                    newSubscription.setEndDate(LocalDate.now().plusYears(100)); // No expiration
+                } else {
+                    newSubscription.setEndDate(LocalDate.now().plusMonths(duration.longValue()));
+                }
+                
+                newSubscription.setStatus(SubscriptionStatus.ACTIVE);
+                newSubscription.setPaymentMethod(subscription.getPaymentMethod());
+                newSubscription.setPaymentStatus(PaymentStatus.COMPLETED);
+                
+                subscriptionRepository.save(newSubscription);
+                
+                log.info("Auto-renewed subscription for user {} with plan {}", 
+                        subscription.getUser().getEmail(), 
+                        subscription.getMembershipPlan().getName());
+                
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("Auto-renewal failed for subscription {}: {}", 
+                    subscription.getId(), e.getMessage());
+        }
+        
+        return false;
+    }
+    
+    @Override
+    public void fallbackToBasicPlan(User user, String reason) {
+        try {
+            // Find the Basic membership plan
+            MembershipPlan basicPlan = membershipPlanRepository.findByName("Basic")
+                    .orElseThrow(() -> new ResourceNotFoundException("Basic membership plan not found"));
+            
+            // Create Basic subscription
+            Subscription basicSubscription = new Subscription();
+            basicSubscription.setUser(user);
+            basicSubscription.setMembershipPlan(basicPlan);
+            basicSubscription.setStartDate(LocalDate.now());
+            basicSubscription.setEndDate(LocalDate.now().plusYears(100)); // No expiration for Basic
+            basicSubscription.setStatus(SubscriptionStatus.ACTIVE);
+            basicSubscription.setPaymentMethod(null); // Free plan
+            basicSubscription.setPaymentStatus(PaymentStatus.COMPLETED);
+            
+            subscriptionRepository.save(basicSubscription);
+            
+            log.info("Fallback to Basic plan successful for user {}: {}", user.getEmail(), reason);
+        } catch (Exception e) {
+            log.error("Failed to fallback to Basic plan for user {}: {}", user.getEmail(), e.getMessage());
+        }
+    }
+    
+    /**
+     * Simulate payment processing
+     * In real implementation, this would integrate with payment gateway
+     */
+    private boolean processPayment(Subscription subscription) {
+        // Simulate payment processing logic using configurable success rate
+        double random = Math.random();
+        boolean paymentSuccessful = random < autoRenewalSuccessRate;
+        
+        if (paymentSuccessful) {
+            log.info("Payment processing successful for subscription {} (amount: {})", 
+                    subscription.getId(), subscription.getMembershipPlan().getPrice());
+        } else {
+            log.warn("Payment processing failed for subscription {} (amount: {})", 
+                    subscription.getId(), subscription.getMembershipPlan().getPrice());
+        }
+        
+        return paymentSuccessful;
+    }
+    
+    @Override
+    public void setAutoRenewalSuccessRate(double successRate) {
+        this.autoRenewalSuccessRate = Math.max(0.0, Math.min(1.0, successRate));
+        log.info("Auto-renewal success rate set to: {}", this.autoRenewalSuccessRate);
     }
 }

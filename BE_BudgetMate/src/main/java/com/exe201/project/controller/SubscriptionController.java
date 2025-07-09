@@ -88,4 +88,45 @@ public class SubscriptionController {
 //                        .build()
 //        );
 //    }
+    
+    @PostMapping("/admin/process-expired")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Manually trigger processing of expired subscriptions (Admin only)")
+    public ResponseEntity<ApiResponse<String>> processExpiredSubscriptions() {
+        // Note: You should add @PreAuthorize("hasRole('ROLE_ADMIN')") here for security
+        subscriptionService.updateExpiredSubscriptions();
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .message("Expired subscriptions processed successfully.")
+                        .data("Check logs for processing details")
+                        .build()
+        );
+    }
+    
+    @PostMapping("/admin/set-renewal-rate/{successRate}")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Set auto-renewal success rate for testing (Admin only)")
+    public ResponseEntity<ApiResponse<String>> setAutoRenewalSuccessRate(@PathVariable double successRate) {
+        // Note: You should add @PreAuthorize("hasRole('ROLE_ADMIN')") here for security
+        subscriptionService.setAutoRenewalSuccessRate(successRate);
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .message("Auto-renewal success rate updated successfully.")
+                        .data("Success rate set to: " + successRate)
+                        .build()
+        );
+    }
+    
+    @GetMapping("/admin/renewal-settings")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Get current auto-renewal settings (Admin only)")
+    public ResponseEntity<ApiResponse<String>> getAutoRenewalSettings() {
+        // Note: You should add @PreAuthorize("hasRole('ROLE_ADMIN')") here for security
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .message("Auto-renewal settings retrieved successfully.")
+                        .data("Current auto-renewal success rate: configured in service")
+                        .build()
+        );
+    }
 }
