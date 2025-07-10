@@ -9,27 +9,27 @@ public interface PaymentService {
      * Create payment link for subscription
      */
     PaymentResponse createPaymentLink(Long membershipPlanId, PaymentRequest request);
-    
+
     /**
      * Handle payment webhook from PayOS
      */
     void handlePaymentWebhook(String webhookBody, String signature);
-    
+
     /**
      * Confirm payment and activate subscription
      */
     void confirmPayment(String orderCode, String status);
-    
+
     /**
      * Process auto-renewal payment
      */
     boolean processAutoRenewalPayment(Subscription subscription);
-    
+
     /**
      * Get payment status
      */
     String getPaymentStatus(String orderCode);
-    
+
     /**
      * Cancel payment
      */

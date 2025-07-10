@@ -6,11 +6,11 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table
-@AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
@@ -34,8 +34,19 @@ public class MembershipPlan {
     Status status;
     
     @OneToMany(mappedBy = "membershipPlan")
-    List<Subscription> subscriptions;
+    List<Subscription> subscriptions = new ArrayList<>();
     
-    @OneToMany(mappedBy = "membershipPlan", cascade = CascadeType.ALL, orphanRemoval = true)
-    List<MembershipFeature> membershipFeatures;
+    @OneToMany(mappedBy = "membershipPlan", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    List<MembershipFeature> membershipFeatures = new ArrayList<>();
+    
+    public MembershipPlan(String name, String description, Double price, Double duration, DurationType type, Status status) {
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.duration = duration;
+        this.type = type;
+        this.status = status;
+        this.subscriptions = new ArrayList<>();
+        this.membershipFeatures = new ArrayList<>();
+    }
 }
