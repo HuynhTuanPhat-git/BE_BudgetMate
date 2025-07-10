@@ -2,20 +2,14 @@ package com.exe201.project.service.impl;
 
 import com.exe201.project.dto.request.SubscriptionRequest;
 import com.exe201.project.dto.response.SubscriptionResponse;
-import com.exe201.project.entity.MembershipPlan;
-import com.exe201.project.entity.Subscription;
-import com.exe201.project.entity.User;
-import com.exe201.project.entity.Wallets;
+import com.exe201.project.entity.*;
 import com.exe201.project.enums.DurationType;
 import com.exe201.project.enums.PaymentStatus;
 import com.exe201.project.enums.SubscriptionStatus;
 import com.exe201.project.enums.WalletType;
 import com.exe201.project.exception.ResourceNotFoundException;
 import com.exe201.project.mapper.SubscriptionMapper;
-import com.exe201.project.repository.MembershipPlanRepository;
-import com.exe201.project.repository.SubscriptionRepository;
-import com.exe201.project.repository.UserRepository;
-import com.exe201.project.repository.WalletRepository;
+import com.exe201.project.repository.*;
 import com.exe201.project.service.PaymentService;
 import com.exe201.project.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -41,6 +36,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final WalletRepository walletRepository;
     private final SubscriptionMapper subscriptionMapper;
     private final PaymentService paymentService;
+    private final CategoryRepository categoryRepository;
+    private final TransactionRepository transactionRepository;
     
     // Configurable success rate for auto-renewal (default 80%)
     private double autoRenewalSuccessRate = 0.8;
@@ -101,10 +98,34 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 //        if ("Basic".equals(membershipPlan.getName()) && !hasWallets(user.getId())) {
 //            createDefaultWalletsForUser(user);
 //        }
-        
+
+//        addFreePlanToTransaction(user);
+
         log.info("User {} subscribed to membership plan: {}", user.getEmail(), membershipPlan.getName());
         
         return subscriptionMapper.toSubscriptionResponse(savedSubscription);
+    }
+
+    private void addFreePlanToTransaction(User user) {
+        Wallets wallet = walletRepository.findByUserAndType(user, WalletType.DEFAULT)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+
+        Category category = null;
+        category = categoryRepository.findByName("MEMBERSHIP")
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+        Transaction transaction = new Transaction();
+        transaction.setAmount(0.0);
+        transaction.setDescription("Basic membership plan");
+        transaction.setTransactionTime(LocalDateTime.now());
+        transaction.setWallet(wallet);
+        transaction.setCategory(category);
+
+        // Update wallet balance
+        wallet.setBalance(wallet.getBalance());
+
+        transactionRepository.save(transaction);
+        walletRepository.save(wallet);
     }
     
     @Override
@@ -319,6 +340,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             basicSubscription.setPaymentStatus(PaymentStatus.COMPLETED);
             
             subscriptionRepository.save(basicSubscription);
+
+//            addFreePlanToTransaction(user);
             
             log.info("Fallback to Basic plan successful for user {}: {}", user.getEmail(), reason);
         } catch (Exception e) {

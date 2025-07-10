@@ -62,7 +62,14 @@ public class AppInitConfig {
                 category.setName("TRANSACTION REFACTOR");
                 category.setColor("#007bff");
                 categoryRepository.save(category);
-                log.info("Category initialized.");
+                log.info("Category TRANSACTION REFACTOR initialized.");
+            }
+            if(categoryRepository.findByName("MEMBERSHIP").isEmpty()) {
+                Category category = new Category();
+                category.setName("MEMBERSHIP");
+                category.setColor("#fca130");
+                categoryRepository.save(category);
+                log.info("Category MEMBERSHIP initialized.");
             }
 
             if(roleRepository.findAll().isEmpty()){

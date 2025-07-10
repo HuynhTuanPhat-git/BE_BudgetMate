@@ -2,17 +2,15 @@ package com.exe201.project.service.impl;
 
 import com.exe201.project.dto.request.PaymentRequest;
 import com.exe201.project.dto.response.PaymentResponse;
-import com.exe201.project.entity.MembershipPlan;
-import com.exe201.project.entity.Subscription;
-import com.exe201.project.entity.User;
+import com.exe201.project.entity.*;
 import com.exe201.project.enums.DurationType;
 import com.exe201.project.enums.PaymentStatus;
 import com.exe201.project.enums.SubscriptionStatus;
+import com.exe201.project.enums.WalletType;
 import com.exe201.project.exception.ResourceNotFoundException;
-import com.exe201.project.repository.MembershipPlanRepository;
-import com.exe201.project.repository.SubscriptionRepository;
-import com.exe201.project.repository.UserRepository;
+import com.exe201.project.repository.*;
 import com.exe201.project.service.PaymentService;
+import com.exe201.project.service.UserService;
 import com.google.gson.Gson;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +26,7 @@ import vn.payos.type.Webhook;
 import vn.payos.type.WebhookData;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +41,10 @@ public class PaymentServiceImpl implements PaymentService {
     private final MembershipPlanRepository membershipPlanRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
+    private final WalletRepository walletRepository;
+    private final TransactionRepository transactionRepository;
+    private final CategoryRepository categoryRepository;
+    private final UserService userService;
     
     @Override
     public PaymentResponse createPaymentLink(Long membershipPlanId, PaymentRequest request) {
@@ -158,6 +161,8 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public void confirmPayment(String orderCode, String status) {
         try {
+            User user = userService.getAuthenticatedUser();
+
             Optional<Subscription> subscriptionOpt = subscriptionRepository.findByOrderCode(orderCode);
             
             if (subscriptionOpt.isEmpty()) {
@@ -171,6 +176,26 @@ public class PaymentServiceImpl implements PaymentService {
                 subscription.setStatus(SubscriptionStatus.ACTIVE);
                 subscription.setPaymentStatus(PaymentStatus.COMPLETED);
                 subscriptionRepository.save(subscription);
+
+                Wallets wallet = walletRepository.findByUserAndType(user, WalletType.DEFAULT)
+                        .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+
+                Category category = null;
+                category = categoryRepository.findByName("MEMBERSHIP")
+                        .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+                Transaction transaction = new Transaction();
+                transaction.setAmount(subscription.getMembershipPlan().getPrice());
+                transaction.setDescription(subscription.getMembershipPlan().getName() + " membership plan");
+                transaction.setTransactionTime(LocalDateTime.now());
+                transaction.setWallet(wallet);
+                transaction.setCategory(category);
+
+                // Update wallet balance
+                wallet.setBalance(wallet.getBalance());
+
+                transactionRepository.save(transaction);
+                walletRepository.save(wallet);
                 
                 log.info("Payment confirmed and subscription activated for order: {}", orderCode);
             } else if ("CANCELLED".equals(status) || "FAILED".equals(status) || "REFUNDED".equals(status)) {
@@ -240,6 +265,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public String getPaymentStatus(String orderCode) {
         try {
+            User user = userService.getAuthenticatedUser();
             // Query PayOS for payment status
             PaymentLinkData paymentLinkData = payOS.getPaymentLinkInformation(Long.parseLong(orderCode));
 
@@ -254,6 +280,26 @@ public class PaymentServiceImpl implements PaymentService {
                 if ("PAID".equals(payosStatus) && subscription.getStatus().equals(SubscriptionStatus.PENDING)) {
                     subscription.setStatus(SubscriptionStatus.ACTIVE);
                     subscription.setPaymentStatus(PaymentStatus.COMPLETED);
+
+                    Wallets wallet = walletRepository.findByUserAndType(user, WalletType.DEFAULT)
+                            .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+
+                    Category category = null;
+                    category = categoryRepository.findByName("MEMBERSHIP")
+                            .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+                    Transaction transaction = new Transaction();
+                    transaction.setAmount(subscription.getMembershipPlan().getPrice());
+                    transaction.setDescription(subscription.getMembershipPlan().getName() + " membership plan");
+                    transaction.setTransactionTime(LocalDateTime.now());
+                    transaction.setWallet(wallet);
+                    transaction.setCategory(category);
+
+                    // Update wallet balance
+                    wallet.setBalance(wallet.getBalance());
+
+                    transactionRepository.save(transaction);
+                    walletRepository.save(wallet);
                 } else if ("CANCELLED".equals(payosStatus)) {
                     subscription.setStatus(SubscriptionStatus.CANCELLED);
                     subscription.setPaymentStatus(PaymentStatus.CANCELLED);
