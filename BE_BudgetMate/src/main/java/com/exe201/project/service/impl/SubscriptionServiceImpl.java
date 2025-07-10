@@ -6,6 +6,7 @@ import com.exe201.project.entity.MembershipPlan;
 import com.exe201.project.entity.Subscription;
 import com.exe201.project.entity.User;
 import com.exe201.project.entity.Wallets;
+import com.exe201.project.enums.DurationType;
 import com.exe201.project.enums.PaymentStatus;
 import com.exe201.project.enums.SubscriptionStatus;
 import com.exe201.project.enums.WalletType;
@@ -15,6 +16,7 @@ import com.exe201.project.repository.MembershipPlanRepository;
 import com.exe201.project.repository.SubscriptionRepository;
 import com.exe201.project.repository.UserRepository;
 import com.exe201.project.repository.WalletRepository;
+import com.exe201.project.service.PaymentService;
 import com.exe201.project.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
     private final SubscriptionMapper subscriptionMapper;
+    private final PaymentService paymentService;
     
     // Configurable success rate for auto-renewal (default 80%)
     private double autoRenewalSuccessRate = 0.8;
@@ -53,6 +56,20 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         MembershipPlan membershipPlan = membershipPlanRepository.findById(membershipPlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Membership plan not found with id: " + membershipPlanId));
         
+        // Check if it's a free plan (typically Basic plan with price 0)
+        if (membershipPlan.getPrice() == 0.0) {
+            // Handle free membership subscription directly
+            return subscribeToFreeMembership(user, membershipPlan, request);
+        } else {
+            // For paid memberships, this method should typically redirect to payment
+            // But for direct subscription (e.g., admin assignment), we can create directly
+//            log.info("Direct subscription to paid membership plan for user: {}", user.getEmail());
+//            return subscribeToFreeMembership(user, membershipPlan, request);
+            throw new IllegalArgumentException("This feature just use with Basic plan");
+        }
+    }
+    
+    private SubscriptionResponse subscribeToFreeMembership(User user, MembershipPlan membershipPlan, SubscriptionRequest request) {
         // Cancel any existing active subscription
         cancelExistingActiveSubscription(user.getId());
         
@@ -66,14 +83,17 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         if (membershipPlan.getDuration() == 0.0) {
             // No expiration (Basic plan)
             subscription.setEndDate(LocalDate.now().plusYears(100));
-        } else {
+        } else if (membershipPlan.getType().equals(DurationType.MONTHLY)){
             // Add duration in months
             subscription.setEndDate(LocalDate.now().plusMonths(membershipPlan.getDuration().longValue()));
+        } else if (membershipPlan.getType().equals(DurationType.YEARLY)){
+            // Add duration in months
+            subscription.setEndDate(LocalDate.now().plusYears(membershipPlan.getDuration().longValue()));
         }
         
         subscription.setStatus(SubscriptionStatus.ACTIVE);
         subscription.setPaymentMethod(request.paymentMethod());
-        subscription.setPaymentStatus(PaymentStatus.COMPLETED); // For simplicity, assume payment is always completed
+        subscription.setPaymentStatus(PaymentStatus.COMPLETED); // For free plans, no payment needed
         
         Subscription savedSubscription = subscriptionRepository.save(subscription);
         
@@ -94,7 +114,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         
         return activeSubscription
                 .map(subscriptionMapper::toSubscriptionResponse)
-                .orElse(null);
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
     }
     
     @Override
@@ -168,8 +188,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             }
             
             // Attempt auto-renewal first
-            boolean renewalSuccessful = attemptAutoRenewal(subscription);
-            
+//            boolean renewalSuccessful = attemptAutoRenewal(subscription);
+            boolean renewalSuccessful = false; //handle later
+
             if (renewalSuccessful) {
                 log.info("Successfully auto-renewed subscription {} for user {}", 
                         subscription.getId(), subscription.getUser().getEmail());
@@ -207,6 +228,36 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         return !walletRepository.findAllByUserId(userId).isEmpty();
     }
     
+//    private void createDefaultWalletsForUser(User user) {
+//        try {
+//            // Create default wallets for Basic plan users
+//            Wallets defaultWallet = new Wallets();
+//            defaultWallet.setUser(user);
+//            defaultWallet.setName("Default Wallet");
+//            defaultWallet.setType(WalletType.DEFAULT);
+//            defaultWallet.setBalance(0.0);
+//            walletRepository.save(defaultWallet);
+//
+//            Wallets debtWallet = new Wallets();
+//            debtWallet.setUser(user);
+//            debtWallet.setName("Debt Wallet");
+//            debtWallet.setType(WalletType.DEBT);
+//            debtWallet.setBalance(0.0);
+//            walletRepository.save(debtWallet);
+//
+//            Wallets savingsWallet = new Wallets();
+//            savingsWallet.setUser(user);
+//            savingsWallet.setName("Savings Wallet");
+//            savingsWallet.setType(WalletType.SAVINGS);
+//            savingsWallet.setBalance(0.0);
+//            walletRepository.save(savingsWallet);
+//
+//            log.info("Created default wallets for user: {}", user.getEmail());
+//        } catch (Exception e) {
+//            log.error("Failed to create default wallets for user {}: {}", user.getEmail(), e.getMessage());
+//        }
+//    }
+    
     @Override
     public boolean attemptAutoRenewal(Subscription subscription) {
         try {
@@ -224,8 +275,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 Double duration = subscription.getMembershipPlan().getDuration();
                 if (duration == 0.0) {
                     newSubscription.setEndDate(LocalDate.now().plusYears(100)); // No expiration
-                } else {
+                } else if (subscription.getMembershipPlan().getType().equals(DurationType.MONTHLY)) {
                     newSubscription.setEndDate(LocalDate.now().plusMonths(duration.longValue()));
+                } else if (subscription.getMembershipPlan().getType().equals(DurationType.YEARLY)) {
+                    newSubscription.setEndDate(LocalDate.now().plusYears(duration.longValue()));
                 }
                 
                 newSubscription.setStatus(SubscriptionStatus.ACTIVE);
@@ -274,23 +327,27 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
     
     /**
-     * Simulate payment processing
-     * In real implementation, this would integrate with payment gateway
+     * Process payment for auto-renewal using PaymentService
      */
     private boolean processPayment(Subscription subscription) {
-        // Simulate payment processing logic using configurable success rate
-        double random = Math.random();
-        boolean paymentSuccessful = random < autoRenewalSuccessRate;
-        
-        if (paymentSuccessful) {
-            log.info("Payment processing successful for subscription {} (amount: {})", 
-                    subscription.getId(), subscription.getMembershipPlan().getPrice());
-        } else {
-            log.warn("Payment processing failed for subscription {} (amount: {})", 
-                    subscription.getId(), subscription.getMembershipPlan().getPrice());
+        try {
+            // Use PaymentService for auto-renewal payment
+            boolean paymentSuccessful = paymentService.processAutoRenewalPayment(subscription);
+            
+            if (paymentSuccessful) {
+                log.info("Auto-renewal payment successful for subscription {} (amount: {})", 
+                        subscription.getId(), subscription.getMembershipPlan().getPrice());
+            } else {
+                log.warn("Auto-renewal payment failed for subscription {} (amount: {})", 
+                        subscription.getId(), subscription.getMembershipPlan().getPrice());
+            }
+            
+            return paymentSuccessful;
+        } catch (Exception e) {
+            log.error("Error processing auto-renewal payment for subscription {}: {}", 
+                    subscription.getId(), e.getMessage());
+            return false;
         }
-        
-        return paymentSuccessful;
     }
     
     @Override

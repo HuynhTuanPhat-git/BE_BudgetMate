@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class MembershipController {
     
     private final MembershipPlanService membershipPlanService;
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<ApiResponse<MembershipResponse>> createMembershipPlan(@Valid @RequestBody MembershipRequest request) {
@@ -54,6 +56,7 @@ public class MembershipController {
         );
     }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<MembershipResponse>> updateMembershipPlan(
             @PathVariable Long id, 
@@ -67,6 +70,7 @@ public class MembershipController {
         );
     }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteMembershipPlan(@PathVariable Long id) {
         membershipPlanService.deleteMembershipPlan(id);
@@ -77,6 +81,7 @@ public class MembershipController {
         );
     }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/{id}/features/{featureKey}/access")
     public ResponseEntity<ApiResponse<Boolean>> checkFeatureAccess(
             @PathVariable Long id, 
@@ -90,6 +95,7 @@ public class MembershipController {
         );
     }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/{id}/features/{featureKey}/limit")
     public ResponseEntity<ApiResponse<Integer>> getFeatureLimit(
             @PathVariable Long id, 

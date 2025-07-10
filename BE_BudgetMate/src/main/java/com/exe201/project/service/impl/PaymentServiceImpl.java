@@ -5,6 +5,7 @@ import com.exe201.project.dto.response.PaymentResponse;
 import com.exe201.project.entity.MembershipPlan;
 import com.exe201.project.entity.Subscription;
 import com.exe201.project.entity.User;
+import com.exe201.project.enums.DurationType;
 import com.exe201.project.enums.PaymentStatus;
 import com.exe201.project.enums.SubscriptionStatus;
 import com.exe201.project.exception.ResourceNotFoundException;
@@ -12,6 +13,7 @@ import com.exe201.project.repository.MembershipPlanRepository;
 import com.exe201.project.repository.SubscriptionRepository;
 import com.exe201.project.repository.UserRepository;
 import com.exe201.project.service.PaymentService;
+import com.google.gson.Gson;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +23,9 @@ import vn.payos.PayOS;
 import vn.payos.type.CheckoutResponseData;
 import vn.payos.type.ItemData;
 import vn.payos.type.PaymentData;
+import vn.payos.type.PaymentLinkData;
+import vn.payos.type.Webhook;
+import vn.payos.type.WebhookData;
 
 import java.time.LocalDate;
 import java.util.Date;
@@ -74,7 +79,7 @@ public class PaymentServiceImpl implements PaymentService {
             PaymentData paymentData = PaymentData.builder()
                     .orderCode(Long.parseLong(orderCode))
                     .amount(membershipPlan.getPrice().intValue())
-                    .description("Payment for " + membershipPlan.getName() + " membership plan")
+                    .description("Pay for " + membershipPlan.getName() + " plan")
                     .items(List.of(item))
                     .returnUrl(request.returnUrl() != null ? request.returnUrl() : "http://localhost:3000/payment/success")
                     .cancelUrl(request.cancelUrl() != null ? request.cancelUrl() : "http://localhost:3000/payment/cancel")
@@ -109,16 +114,41 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public void handlePaymentWebhook(String webhookBody, String signature) {
         try {
-            // Verify webhook signature
-            // PayOS webhook verification logic here
-            
             // Parse webhook data
-            // Extract order code and payment status from webhook
-            // This is a simplified implementation
-            log.info("Received payment webhook: {}", webhookBody);
+            Gson gson = new Gson();
+            Webhook webhook = gson.fromJson(webhookBody, Webhook.class);
             
-            // You would parse the webhook JSON here and extract the relevant data
-            // For now, this is a placeholder implementation
+            // Verify webhook data
+            WebhookData webhookData = payOS.verifyPaymentWebhookData(webhook);
+            
+            log.info("Received payment webhook for order: {}", webhookData.getOrderCode());
+            
+            // Process payment based on webhook data
+            String orderCode = String.valueOf(webhookData.getOrderCode());
+            String paymentStatus = webhookData.getCode();
+            
+            // Update subscription based on payment status
+            Optional<Subscription> subscriptionOpt = subscriptionRepository.findByOrderCode(orderCode);
+            
+            if (subscriptionOpt.isPresent()) {
+                Subscription subscription = subscriptionOpt.get();
+                
+                if ("00".equals(paymentStatus)) {
+                    // Payment successful
+                    subscription.setStatus(SubscriptionStatus.ACTIVE);
+                    subscription.setPaymentStatus(PaymentStatus.COMPLETED);
+                    log.info("Payment successful for order: {}", orderCode);
+                } else {
+                    // Payment failed
+                    subscription.setStatus(SubscriptionStatus.CANCELLED);
+                    subscription.setPaymentStatus(PaymentStatus.FAILED);
+                    log.info("Payment failed for order: {} with code: {}", orderCode, paymentStatus);
+                }
+                
+                subscriptionRepository.save(subscription);
+            } else {
+                log.warn("No subscription found for order code: {}", orderCode);
+            }
             
         } catch (Exception e) {
             log.error("Error handling payment webhook: {}", e.getMessage(), e);
@@ -143,7 +173,7 @@ public class PaymentServiceImpl implements PaymentService {
                 subscriptionRepository.save(subscription);
                 
                 log.info("Payment confirmed and subscription activated for order: {}", orderCode);
-            } else if ("CANCELLED".equals(status) || "FAILED".equals(status)) {
+            } else if ("CANCELLED".equals(status) || "FAILED".equals(status) || "REFUNDED".equals(status)) {
                 subscription.setStatus(SubscriptionStatus.CANCELLED);
                 subscription.setPaymentStatus(PaymentStatus.FAILED);
                 subscriptionRepository.save(subscription);
@@ -211,14 +241,31 @@ public class PaymentServiceImpl implements PaymentService {
     public String getPaymentStatus(String orderCode) {
         try {
             // Query PayOS for payment status
-            // This would use PayOS API to get payment status
-            
+            PaymentLinkData paymentLinkData = payOS.getPaymentLinkInformation(Long.parseLong(orderCode));
+
+            // Update local subscription status based on PayOS status
             Optional<Subscription> subscriptionOpt = subscriptionRepository.findByOrderCode(orderCode);
+            String payosStatus = null;
             if (subscriptionOpt.isPresent()) {
-                return subscriptionOpt.get().getPaymentStatus().toString();
+                Subscription subscription = subscriptionOpt.get();
+
+                // Map PayOS status to our internal status
+                payosStatus = paymentLinkData.getStatus();
+                if ("PAID".equals(payosStatus) && subscription.getStatus().equals(SubscriptionStatus.PENDING)) {
+                    subscription.setStatus(SubscriptionStatus.ACTIVE);
+                    subscription.setPaymentStatus(PaymentStatus.COMPLETED);
+                } else if ("CANCELLED".equals(payosStatus)) {
+                    subscription.setStatus(SubscriptionStatus.CANCELLED);
+                    subscription.setPaymentStatus(PaymentStatus.CANCELLED);
+                } else if ("PENDING".equals(payosStatus)) {
+                    subscription.setPaymentStatus(PaymentStatus.PENDING);
+                }
+
+                subscriptionRepository.save(subscription);
+                return subscription.getPaymentStatus().toString();
             }
-            
-            return "NOT_FOUND";
+
+            return payosStatus;
         } catch (Exception e) {
             log.error("Error getting payment status: {}", e.getMessage(), e);
             return "ERROR";
@@ -267,8 +314,10 @@ public class PaymentServiceImpl implements PaymentService {
         // Calculate end date
         if (membershipPlan.getDuration() == 0.0) {
             subscription.setEndDate(LocalDate.now().plusYears(100));
-        } else {
+        } else if (membershipPlan.getType().equals(DurationType.MONTHLY)) {
             subscription.setEndDate(LocalDate.now().plusMonths(membershipPlan.getDuration().longValue()));
+        } else if (membershipPlan.getType().equals(DurationType.YEARLY)) {
+            subscription.setEndDate(LocalDate.now().plusYears(membershipPlan.getDuration().longValue()));
         }
         
         subscription.setStatus(SubscriptionStatus.PENDING);
