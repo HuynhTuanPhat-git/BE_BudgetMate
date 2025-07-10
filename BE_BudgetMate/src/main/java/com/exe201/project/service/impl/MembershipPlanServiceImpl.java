@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -47,13 +48,14 @@ public class MembershipPlanServiceImpl implements MembershipPlanService {
         membershipPlan.setPrice(membershipRequest.price());
         membershipPlan.setType(membershipRequest.type());
         membershipPlan.setStatus(Status.ACTIVE);
+        membershipPlan.setMembershipFeatures(new ArrayList<>());
         
         MembershipPlan savedMembership = membershipPlanRepository.save(membershipPlan);
         
         // Add features to membership
         if (membershipRequest.features() != null && !membershipRequest.features().isEmpty()) {
             List<MembershipFeature> membershipFeatures = createMembershipFeatures(savedMembership, membershipRequest.features());
-            savedMembership.setMembershipFeatures(membershipFeatures);
+            savedMembership.getMembershipFeatures().addAll(membershipFeatures);
         }
         
         return membershipMapper.toMembershipResponse(savedMembership);
@@ -78,11 +80,20 @@ public class MembershipPlanServiceImpl implements MembershipPlanService {
         membershipPlan.setPrice(membershipRequest.price());
         membershipPlan.setType(membershipRequest.type());
         
-        // Update features
-        membershipFeatureRepository.deleteByMembershipPlanId(id);
+        // Update features properly with orphanRemoval
+        if (membershipPlan.getMembershipFeatures() != null) {
+            membershipPlan.getMembershipFeatures().clear(); // This will trigger orphanRemoval
+        } else {
+            membershipPlan.setMembershipFeatures(new ArrayList<>());
+        }
+        
+        // Flush to ensure deletion is processed
+        membershipPlanRepository.flush();
+        
+        // Add new features
         if (membershipRequest.features() != null && !membershipRequest.features().isEmpty()) {
-            List<MembershipFeature> membershipFeatures = createMembershipFeatures(membershipPlan, membershipRequest.features());
-            membershipPlan.setMembershipFeatures(membershipFeatures);
+            List<MembershipFeature> newFeatures = createMembershipFeaturesForUpdate(membershipPlan, membershipRequest.features());
+            membershipPlan.getMembershipFeatures().addAll(newFeatures);
         }
         
         MembershipPlan updatedMembership = membershipPlanRepository.save(membershipPlan);
@@ -152,6 +163,24 @@ public class MembershipPlanServiceImpl implements MembershipPlanService {
                     membershipFeature.setDescription(featureRequest.description());
                     
                     return membershipFeatureRepository.save(membershipFeature);
+                })
+                .collect(Collectors.toList());
+    }
+    
+    private List<MembershipFeature> createMembershipFeaturesForUpdate(MembershipPlan membershipPlan, List<MembershipFeatureRequest> featureRequests) {
+        return featureRequests.stream()
+                .map(featureRequest -> {
+                    Feature feature = featureRepository.findById(featureRequest.featureId())
+                            .orElseThrow(() -> new ResourceNotFoundException("Feature not found with id: " + featureRequest.featureId()));
+                    
+                    MembershipFeature membershipFeature = new MembershipFeature();
+                    membershipFeature.setMembershipPlan(membershipPlan);
+                    membershipFeature.setFeature(feature);
+                    membershipFeature.setLimitValue(featureRequest.limitValue());
+                    membershipFeature.setIsEnabled(featureRequest.isEnabled() != null ? featureRequest.isEnabled() : true);
+                    membershipFeature.setDescription(featureRequest.description());
+                    
+                    return membershipFeature; // Don't save here, let the parent manage it
                 })
                 .collect(Collectors.toList());
     }
