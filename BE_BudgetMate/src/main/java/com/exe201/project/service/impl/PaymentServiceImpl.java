@@ -44,15 +44,12 @@ public class PaymentServiceImpl implements PaymentService {
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
-    private final UserService userService;
     
     @Override
     public PaymentResponse createPaymentLink(Long membershipPlanId, PaymentRequest request) {
         try {
             // Get current authenticated user
-            String email = SecurityContextHolder.getContext().getAuthentication().getName();
-            User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            User user = getAuthenticatedUser();
             
             // Get membership plan
             MembershipPlan membershipPlan = membershipPlanRepository.findById(membershipPlanId)
@@ -161,7 +158,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public void confirmPayment(String orderCode, String status) {
         try {
-            User user = userService.getAuthenticatedUser();
+            User user = getAuthenticatedUser();
 
             Optional<Subscription> subscriptionOpt = subscriptionRepository.findByOrderCode(orderCode);
             
@@ -265,7 +262,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public String getPaymentStatus(String orderCode) {
         try {
-            User user = userService.getAuthenticatedUser();
+            User user = getAuthenticatedUser();
             // Query PayOS for payment status
             PaymentLinkData paymentLinkData = payOS.getPaymentLinkInformation(Long.parseLong(orderCode));
 
@@ -377,5 +374,11 @@ public class PaymentServiceImpl implements PaymentService {
         // Generate unique order code based on subscription ID and timestamp
         long timestamp = new Date().getTime();
         return String.valueOf(subscriptionId * 1000 + (timestamp % 1000));
+    }
+
+    private User getAuthenticatedUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }
