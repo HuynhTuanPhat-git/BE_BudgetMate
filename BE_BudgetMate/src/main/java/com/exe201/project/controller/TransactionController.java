@@ -105,5 +105,15 @@ public class TransactionController {
         );
     }
 
+    @GetMapping("/wallet/{walletId}/deleted")
+    public ResponseEntity<ApiResponse<List<TransactionResponse>>> getDeletedTransactions(@PathVariable Long walletId) {
+        List<TransactionResponse> deletedTransactions = transactionService.getDeletedTransactions(walletId);
+        return ResponseEntity.ok(
+                ApiResponse.<List<TransactionResponse>>builder()
+                        .message("Deleted transactions retrieved successfully.")
+                        .data(deletedTransactions)
+                        .build()
+        );
+    }
 
 }

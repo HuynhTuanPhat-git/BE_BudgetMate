@@ -77,7 +77,7 @@ public class TransactionServiceImpl implements TransactionService {
         walletRepository.findByIdAndUserId(walletId, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
-        List<Transaction> transactions = transactionRepository.findByWalletIdOrderByTransactionTimeDesc(walletId);
+        List<Transaction> transactions = transactionRepository.findByWalletIdAndIsDeletedFalseOrderByTransactionTimeDesc(walletId);
         return transactions.stream()
                 .map(transactionMapper::toTransactionResponse)
                 .collect(Collectors.toList());
@@ -123,31 +123,32 @@ public class TransactionServiceImpl implements TransactionService {
             throw new ResourceNotFoundException("Transaction not found");
         }
 
+        // Check if transaction is already deleted
+        if (transaction.isDeleted()) {
+            throw new ResourceNotFoundException("Cannot update deleted transaction");
+        }
+
+        // Store original values for audit trail
+        transaction.setOriginalAmount(transaction.getAmount());
+        transaction.setOriginalDescription(transaction.getDescription());
+        transaction.setOriginalTransactionTime(transaction.getTransactionTime());
+
         // Update wallet balance by reversing old amount and adding new amount
         Wallets wallet = transaction.getWallet();
         wallet.setBalance(wallet.getBalance() - transaction.getAmount() + request.amount());
 
-        Transaction deleteTransaction = new Transaction();
-        deleteTransaction.setWallet(wallet);
-        deleteTransaction.setAmount(-transaction.getAmount());
-        deleteTransaction.setDescription(transaction.getDescription());
-        deleteTransaction.setCategory(categoryRepository.findByName("TRANSACTION REFACTOR")
-                .orElseThrow(() -> {
-            throw new ResourceNotFoundException("Category not found");
-        }));
-        transactionRepository.save(deleteTransaction);
-
-        Transaction addTransaction = new Transaction();
-        addTransaction.setWallet(wallet);
-        addTransaction.setAmount(request.amount());
-        addTransaction.setDescription(request.description());
-        addTransaction.setTransactionTime(request.transactionTime() != null ? request.transactionTime() : LocalDateTime.now());
+        // Update transaction directly
+        transaction.setAmount(request.amount());
+        transaction.setDescription(request.description());
+        transaction.setTransactionTime(request.transactionTime() != null ? request.transactionTime() : transaction.getTransactionTime());
+        
         if (request.categoryId() != null) {
             Category category = categoryRepository.findById(request.categoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-            addTransaction.setCategory(category);
+            transaction.setCategory(category);
         }
-        Transaction updatedTransaction = transactionRepository.save(addTransaction);
+
+        Transaction updatedTransaction = transactionRepository.save(transaction);
         walletRepository.save(wallet);
         
         return transactionMapper.toTransactionResponse(updatedTransaction);
@@ -164,22 +165,25 @@ public class TransactionServiceImpl implements TransactionService {
             throw new ResourceNotFoundException("Transaction not found");
         }
 
+        // Check if transaction is already deleted
+        if (transaction.isDeleted()) {
+            throw new ResourceNotFoundException("Transaction is already deleted");
+        }
+
+        // Store original values for audit trail before soft delete
+        transaction.setOriginalAmount(transaction.getAmount());
+        transaction.setOriginalDescription(transaction.getDescription());
+        transaction.setOriginalTransactionTime(transaction.getTransactionTime());
+
         // Update wallet balance by reversing the transaction
         Wallets wallet = transaction.getWallet();
         wallet.setBalance(wallet.getBalance() - transaction.getAmount());
 
-        Transaction deleteTransaction = new Transaction();
-        deleteTransaction.setWallet(wallet);
-        deleteTransaction.setAmount(-transaction.getAmount());
-        deleteTransaction.setDescription(transaction.getDescription());
-        deleteTransaction.setCategory(categoryRepository.findByName("TRANSACTION REFACTOR")
-                .orElseThrow(() -> {
-                    throw new ResourceNotFoundException("Category not found");
-                }));
+        // Soft delete: set isDeleted to true
+        transaction.setDeleted(true);
 
         walletRepository.save(wallet);
-        transactionRepository.save(deleteTransaction);
-
+        transactionRepository.save(transaction);
     }
 
     @Override
@@ -193,12 +197,27 @@ public class TransactionServiceImpl implements TransactionService {
 
         Double totalIncome = transactionRepository.getTotalIncomeByWalletId(walletId);
         Double totalExpense = transactionRepository.getTotalExpenseByWalletId(walletId);
-        Long transactionCount = (long) transactionRepository.findByWalletId(walletId).size();
+        Long transactionCount = (long) transactionRepository.findByWalletIdAndIsDeletedFalse(walletId).size();
 
         totalIncome = totalIncome != null ? totalIncome : 0.0;
         totalExpense = totalExpense != null ? Math.abs(totalExpense) : 0.0;
         Double netAmount = totalIncome - totalExpense;
 
         return new TransactionSummary(totalIncome, totalExpense, netAmount, transactionCount);
+    }
+
+    @Override
+    public List<TransactionResponse> getDeletedTransactions(Long walletId) {
+        // Get current user
+        User user = userService.getAuthenticatedUser();
+
+        // Verify wallet belongs to user
+        walletRepository.findByIdAndUserId(walletId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+
+        List<Transaction> deletedTransactions = transactionRepository.findByWalletIdAndIsDeletedTrueOrderByUpdatedAtDesc(walletId);
+        return deletedTransactions.stream()
+                .map(transactionMapper::toTransactionResponse)
+                .collect(Collectors.toList());
     }
 }
