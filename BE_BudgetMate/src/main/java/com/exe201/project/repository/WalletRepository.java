@@ -2,11 +2,13 @@ package com.exe201.project.repository;
 
 import com.exe201.project.entity.User;
 import com.exe201.project.entity.Wallets;
+import com.exe201.project.enums.WalletStatus;
 import com.exe201.project.enums.WalletType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,4 +34,8 @@ public interface WalletRepository extends JpaRepository<Wallets, Long> {
 
     List<Wallets> findAllByUserId(Long id);
     Optional<Wallets> findByUserAndType(User user, WalletType type);
+    
+    // Find expired SAVINGS wallets that are still ACTIVE
+    @Query("SELECT w FROM Wallets w WHERE w.type = 'SAVINGS' AND w.status = 'ACTIVE' AND w.deadline <= :currentDate")
+    List<Wallets> findExpiredSavingsWallets(@Param("currentDate") LocalDate currentDate);
 }

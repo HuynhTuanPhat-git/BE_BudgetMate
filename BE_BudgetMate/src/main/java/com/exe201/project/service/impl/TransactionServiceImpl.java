@@ -129,9 +129,11 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         // Store original values for audit trail
-        transaction.setOriginalAmount(transaction.getAmount());
-        transaction.setOriginalDescription(transaction.getDescription());
-        transaction.setOriginalTransactionTime(transaction.getTransactionTime());
+        if (transaction.getOriginalAmount() == null) {
+            transaction.setOriginalAmount(transaction.getAmount());
+            transaction.setOriginalDescription(transaction.getDescription());
+            transaction.setOriginalTransactionTime(transaction.getTransactionTime());
+        }
 
         // Update wallet balance by reversing old amount and adding new amount
         Wallets wallet = transaction.getWallet();

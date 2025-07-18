@@ -126,7 +126,8 @@ public class PaymentController {
     @Operation(summary = "Confirm payment status (for testing)")
     public ResponseEntity<ApiResponse<String>> confirmPayment(
             @RequestParam String orderCode,
-            @RequestParam String status) {
+            @RequestParam String status
+    ) {
         try {
             paymentService.confirmPayment(orderCode, status);
             return ResponseEntity.ok(

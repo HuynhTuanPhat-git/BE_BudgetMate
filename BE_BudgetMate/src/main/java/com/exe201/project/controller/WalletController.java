@@ -116,4 +116,16 @@ public class WalletController {
                         .build()
         );
     }
+
+    @PostMapping("/process-expired-savings")
+    @PreAuthorize("hasRole('ADMIN')") // Only admin can trigger this manually
+    public ResponseEntity<ApiResponse<String>> processExpiredSavingsWallets() {
+        walletService.processExpiredSavingsWallets();
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .message("Expired SAVINGS wallets processed successfully.")
+                        .data("Check wallet balances and transaction history for updates")
+                        .build()
+        );
+    }
 }

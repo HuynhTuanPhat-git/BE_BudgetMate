@@ -5,6 +5,7 @@ import com.exe201.project.dto.response.WalletResponse;
 import com.exe201.project.entity.Transaction;
 import com.exe201.project.entity.User;
 import com.exe201.project.entity.Wallets;
+import com.exe201.project.enums.WalletStatus;
 import com.exe201.project.enums.WalletType;
 import com.exe201.project.exception.InsufficientBalanceException;
 import com.exe201.project.exception.OutOfPermissionException;
@@ -78,7 +79,28 @@ public class WalletServiceImpl implements WalletService {
         wallet.setTargetAmount(request.targetAmount());
         wallet.setInterestRate(request.interestRate() == 0.0 ? 0 : request.interestRate());
         wallet.setDeadline(request.deadline() == null ? null : request.deadline());
-        if (request.type().equals(WalletType.DEFAULT) &&
+        
+        // Handle SAVINGS wallet specific fields
+        if (request.type().equals(WalletType.SAVINGS)) {
+            // Validate required fields for SAVINGS wallet
+            if (request.startDate() == null) {
+                throw new IllegalArgumentException("Start date is required for SAVINGS wallet");
+            }
+            if (request.termMonths() == null || request.termMonths() < 1) {
+                throw new IllegalArgumentException("Term months must be at least 1 for SAVINGS wallet");
+            }
+            if (request.interestRate() <= 0) {
+                throw new IllegalArgumentException("Interest rate must be greater than 0 for SAVINGS wallet");
+            }
+            
+            wallet.setStartDate(request.startDate());
+            wallet.setTermMonths(request.termMonths());
+            
+            // Calculate deadline based on start date and term
+            wallet.setDeadline(request.startDate().plusMonths(request.termMonths()));
+        }
+        
+        if (request.type().equals(WalletType.DEFAULT) && 
                 (request.interestRate() != 0 ||
                 request.deadline() != null)) {
             throw new WrongTypeException("Default wallet must not have interest rate and deadline");
@@ -183,5 +205,55 @@ public class WalletServiceImpl implements WalletService {
         Double totalBalance = walletRepository.getTotalBalanceByUserIdAndType(user.getId(), walletType);
         totalBalance = totalBalance != null ? totalBalance : 0.0;
         return totalBalance;
+    }
+
+    @Override
+    public void processExpiredSavingsWallets() {
+        // This method delegates to the scheduler for manual testing
+        // In a real application, you might want to inject the scheduler or create a separate service
+        // For now, we'll implement the logic directly here
+        
+        List<Wallets> expiredSavingsWallets = walletRepository.findExpiredSavingsWallets(java.time.LocalDate.now());
+        
+        for (Wallets savingsWallet : expiredSavingsWallets) {
+            try {
+                // Calculate maturity amount
+                double maturityAmount = calculateMaturityAmount(
+                    savingsWallet.getTargetAmount(),
+                    savingsWallet.getInterestRate(),
+                    savingsWallet.getTermMonths()
+                );
+                
+                // Find user's DEFAULT wallet
+                java.util.Optional<Wallets> defaultWalletOpt = walletRepository.findByUserAndType(
+                    savingsWallet.getUser(), WalletType.DEFAULT);
+                
+                if (defaultWalletOpt.isPresent()) {
+                    Wallets defaultWallet = defaultWalletOpt.get();
+                    
+                    // Update SAVINGS wallet status to DONE
+                    savingsWallet.setStatus(WalletStatus.DONE);
+                    walletRepository.save(savingsWallet);
+                    
+                    // Add maturity amount to DEFAULT wallet
+                    defaultWallet.setBalance(defaultWallet.getBalance() + maturityAmount);
+                    walletRepository.save(defaultWallet);
+                }
+            } catch (Exception e) {
+                // Log error but continue processing other wallets
+                System.err.println("Error processing SAVINGS wallet ID " + savingsWallet.getId() + ": " + e.getMessage());
+            }
+        }
+    }
+    
+    private double calculateMaturityAmount(double principal, double annualInterestRate, int termMonths) {
+        if (annualInterestRate <= 0 || termMonths <= 0) {
+            return principal;
+        }
+        
+        // Simple interest calculation: A = P * (1 + r * t) where r is annual rate and t is years
+        double maturityAmount = principal * (1 + (annualInterestRate / 100.0) * (termMonths / 12.0));
+        
+        return Math.round(maturityAmount * 100.0) / 100.0; // Round to 2 decimal places
     }
 }
