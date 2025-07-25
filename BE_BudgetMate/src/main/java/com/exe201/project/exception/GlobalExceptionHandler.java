@@ -173,4 +173,28 @@ public class GlobalExceptionHandler {
                         .build()
         );
     }
+
+    @ExceptionHandler(DuplicateException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ResponseEntity<ApiResponse<?>> handleDuplicateException(DuplicateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ApiResponse.builder()
+                        .success(false)
+                        .message(ex.getMessage())
+                        .errorCode(HttpStatus.CONFLICT.value())
+                        .build()
+        );
+    }
+
+    @ExceptionHandler(InternalSeverErrorException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ResponseEntity<ApiResponse<?>> handleInternalSeverErrorException(InternalSeverErrorException ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.builder()
+                        .success(false)
+                        .message(ex.getMessage())
+                        .errorCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                        .build()
+        );
+    }
 }

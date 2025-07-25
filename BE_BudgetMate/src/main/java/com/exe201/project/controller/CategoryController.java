@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +37,7 @@ public class CategoryController {
 //        );
 //    }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<ApiResponse<List<CategoryResponse>>> createMultipleCategories(@Valid @RequestBody BulkCategoryRequest request) {
@@ -59,6 +61,7 @@ public class CategoryController {
         );
     }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PutMapping("/{cateId}")
     public ResponseEntity<ApiResponse<?>> updateCategory(
             @PathVariable long cateId,
@@ -73,6 +76,7 @@ public class CategoryController {
         );
     }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @DeleteMapping("/{cateId}")
     public ResponseEntity<ApiResponse<?>> deleteCategory(
             @PathVariable long cateId

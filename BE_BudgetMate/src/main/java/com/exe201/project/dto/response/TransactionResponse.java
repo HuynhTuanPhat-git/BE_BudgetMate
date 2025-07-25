@@ -13,6 +13,13 @@ public record TransactionResponse(
         Long walletId,
         String walletName,
         Long categoryId,
-        String categoryName
+        String categoryName,
+        boolean isDeleted,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        // Original values for audit trail (when transaction is updated)
+        Double originalAmount,
+        String originalDescription,
+        LocalDateTime originalTransactionTime
 ) {
 }

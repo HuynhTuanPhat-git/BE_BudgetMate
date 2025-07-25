@@ -7,12 +7,14 @@ import com.exe201.project.entity.User;
 import com.exe201.project.entity.Wallets;
 import com.exe201.project.enums.WalletType;
 import com.exe201.project.exception.InsufficientBalanceException;
+import com.exe201.project.exception.OutOfPermissionException;
 import com.exe201.project.exception.ResourceNotFoundException;
 import com.exe201.project.exception.WrongTypeException;
 import com.exe201.project.mapper.WalletMapper;
 import com.exe201.project.repository.TransactionRepository;
 import com.exe201.project.repository.UserRepository;
 import com.exe201.project.repository.WalletRepository;
+import com.exe201.project.service.MembershipAccessService;
 import com.exe201.project.service.UserService;
 import com.exe201.project.service.WalletService;
 import lombok.RequiredArgsConstructor;
@@ -34,11 +36,40 @@ public class WalletServiceImpl implements WalletService {
     private final TransactionRepository transactionRepository;
     private final WalletMapper walletMapper;
     private final UserService userService;
+    private final MembershipAccessService membershipAccessService;
 
     @Override
     public WalletResponse createWallet(WalletRequest request) {
         // Get current user from security context
         User user = userService.getAuthenticatedUser();
+
+        // Check if user has permission to create wallets
+        if (!membershipAccessService.canCreateWallet(user.getId())) {
+            throw new OutOfPermissionException("You don't have permission to create wallets");
+        }
+
+        // Check wallet limits based on membership
+        List<Wallets> existingWallets = walletRepository.findAllByUserId(user.getId());
+        Integer walletLimit = membershipAccessService.getFeatureLimit(user.getId(), "CREATE_WALLET");
+        
+        // For Basic plan (limit = 3), check if user can create wallet of this specific type
+        if (walletLimit != null && walletLimit == 3) {
+            // Basic plan: check if user already has a wallet of this type
+            boolean hasWalletOfType = existingWallets.stream()
+                    .anyMatch(wallet -> wallet.getType().equals(request.type()));
+            
+            if (hasWalletOfType) {
+                throw new OutOfPermissionException("You already have a " + request.type() + " wallet. Basic plan allows only 1 wallet of each type (DEFAULT, DEBT, SAVINGS).");
+            }
+        } else if (walletLimit != null && existingWallets.size() >= walletLimit) {
+            // For other plans, check total wallet limit
+            throw new OutOfPermissionException("You have reached the maximum number of wallets allowed for your membership plan");
+        }
+        
+        // Check if user can create multiple wallets (non-default wallets)
+        if (!request.type().equals(WalletType.DEFAULT) && !membershipAccessService.canCreateMultipleWallets(user.getId())) {
+            throw new OutOfPermissionException("Creating multiple wallets is only available for Plus and Premium members");
+        }
 
         Wallets wallet = new Wallets();
         wallet.setType(request.type());

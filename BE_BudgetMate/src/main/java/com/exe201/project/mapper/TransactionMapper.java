@@ -16,6 +16,12 @@ public class TransactionMapper {
                 .walletName(transaction.getWallet().getName())
                 .categoryId(transaction.getCategory() != null ? transaction.getCategory().getId() : null)
                 .categoryName(transaction.getCategory() != null ? transaction.getCategory().getName() : null)
+                .isDeleted(transaction.isDeleted())
+                .createdAt(transaction.getCreatedAt())
+                .updatedAt(transaction.getUpdatedAt())
+                .originalAmount(transaction.getOriginalAmount())
+                .originalDescription(transaction.getOriginalDescription())
+                .originalTransactionTime(transaction.getOriginalTransactionTime())
                 .build();
     }
 }

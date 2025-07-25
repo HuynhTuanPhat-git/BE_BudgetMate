@@ -83,6 +83,7 @@ public class CategoryServiceImpl implements ICategoryService {
                 .map(categoryRequest -> {
                     Category category = new Category();
                     category.setName(categoryRequest.name());
+                    category.setColor(categoryRequest.color());
                     return category;
                 })
                 .collect(Collectors.toList());

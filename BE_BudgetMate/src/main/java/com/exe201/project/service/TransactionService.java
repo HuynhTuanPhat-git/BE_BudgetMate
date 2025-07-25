@@ -16,4 +16,5 @@ public interface TransactionService {
     TransactionResponse updateTransaction(Long transactionId, TransactionRequest request);
     void deleteTransaction(Long transactionId);
     TransactionSummary getTransactionSummary(Long walletId);
+    List<TransactionResponse> getDeletedTransactions(Long walletId); // For audit trail
 }
