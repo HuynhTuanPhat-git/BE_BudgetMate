@@ -8,7 +8,6 @@ public record MembershipFeatureResponse(
         FeatureResponse feature,
         Integer limitValue,
         Boolean isEnabled,
-        String description,
-        Integer creditPrice
+        String description
 ) {
 }

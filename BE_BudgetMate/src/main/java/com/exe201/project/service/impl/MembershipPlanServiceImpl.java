@@ -161,7 +161,6 @@ public class MembershipPlanServiceImpl implements MembershipPlanService {
                     membershipFeature.setLimitValue(featureRequest.limitValue());
                     membershipFeature.setIsEnabled(featureRequest.isEnabled() != null ? featureRequest.isEnabled() : true);
                     membershipFeature.setDescription(featureRequest.description());
-                    membershipFeature.setCreditPrice(featureRequest.creditPrice());
                     return membershipFeatureRepository.save(membershipFeature);
                 })
                 .collect(Collectors.toList());
@@ -179,7 +178,6 @@ public class MembershipPlanServiceImpl implements MembershipPlanService {
                     membershipFeature.setLimitValue(featureRequest.limitValue());
                     membershipFeature.setIsEnabled(featureRequest.isEnabled() != null ? featureRequest.isEnabled() : true);
                     membershipFeature.setDescription(featureRequest.description());
-                    membershipFeature.setCreditPrice(featureRequest.creditPrice());
                     return membershipFeature;
                 })
                 .collect(Collectors.toList());

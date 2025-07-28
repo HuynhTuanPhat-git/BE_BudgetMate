@@ -12,8 +12,6 @@ public record MembershipFeatureRequest(
         
         Boolean isEnabled,
         
-        String description,
-
-        Integer creditPrice
+        String description
 ) {
 }

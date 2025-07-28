@@ -31,7 +31,4 @@ public class MembershipFeature {
     Boolean isEnabled = true;
     
     String description;
-
-    @Column(name = "credit_price")
-    Integer creditPrice;
 }
