@@ -19,4 +19,4 @@ public class FinanceAnalysisResponse {
     Double currentExpense;
     List<DeptAnalysisResponse> depts;
     List<TransactionAnalysisResponse> transactions;
-} 
+}

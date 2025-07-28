@@ -1,17 +1,9 @@
 package com.exe201.project.dto.request;
 
-import com.exe201.project.entity.Transaction;
-import com.exe201.project.entity.User;
 import com.exe201.project.enums.WalletType;
-import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.util.List;
 
 public record WalletRequest(
 
@@ -25,6 +17,12 @@ public record WalletRequest(
         @Min(value = 0, message = "Value must be larger than 0")
         double interestRate,
 
-        LocalDate deadline
+        LocalDate deadline,
+
+        // Các field mới cho SAVINGS wallet
+        LocalDate startDate,        // Ngày bắt đầu gửi tiết kiệm
+
+        @Min(value = 1, message = "Term must be at least 1 month")
+        Integer termMonths          // Kì hạn tính bằng tháng
 ) {
 }

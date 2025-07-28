@@ -11,6 +11,7 @@ import com.exe201.project.enums.UserStatus;
 import com.exe201.project.repository.*;
 import com.exe201.project.service.FeatureService;
 import com.exe201.project.service.MembershipPlanService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationRunner;
@@ -61,6 +62,14 @@ public class AppInitConfig {
         factory.setReadTimeout(30000);   // 30 seconds
 
         return new RestTemplate(factory);
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        // Disable Unicode escaping to properly display Vietnamese characters
+        mapper.getFactory().configure(com.fasterxml.jackson.core.JsonGenerator.Feature.ESCAPE_NON_ASCII, false);
+        return mapper;
     }
 
     @Bean

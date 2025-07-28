@@ -1,5 +1,6 @@
 package com.exe201.project.entity;
 
+import com.exe201.project.enums.WalletStatus;
 import com.exe201.project.enums.WalletType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,6 +24,9 @@ public class Wallets {
     @Enumerated(EnumType.STRING)
     WalletType type;
 
+    @Enumerated(EnumType.STRING)
+    WalletStatus status = WalletStatus.ACTIVE;
+
     String name;
 
     double balance;
@@ -32,6 +36,14 @@ public class Wallets {
 
     @Column(name = "interest_rate")
     double interestRate;
+
+    // Ngày bắt đầu gửi tiết kiệm (cho SAVINGS wallet)
+    @Column(name = "start_date")
+    LocalDate startDate;
+
+    // Kì hạn tính bằng tháng (cho SAVINGS wallet)
+    @Column(name = "term_months")
+    Integer termMonths;
 
     LocalDate deadline;
     
