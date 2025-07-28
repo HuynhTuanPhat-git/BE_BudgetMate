@@ -24,11 +24,14 @@ public class CreditTransaction {
     User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "membership_feature_id", nullable = false)
-    MembershipFeature membershipFeature;
+    @JoinColumn(name = "purchasable_feature_id")
+    PurchasableFeature purchasableFeature;
 
     @Column(name = "credit_spent", nullable = false)
     Integer creditSpent;
+
+    @Column(name = "usage_granted")
+    Integer usageGranted;
 
     @Column(name = "transaction_time", nullable = false)
     LocalDateTime transactionTime;
