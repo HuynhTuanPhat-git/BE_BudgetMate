@@ -22,6 +22,7 @@ public class MembershipFeatureMapper {
                 .limitValue(membershipFeature.getLimitValue())
                 .isEnabled(membershipFeature.getIsEnabled())
                 .description(membershipFeature.getDescription())
+                .creditPrice(membershipFeature.getCreditPrice())
                 .build();
     }
 }

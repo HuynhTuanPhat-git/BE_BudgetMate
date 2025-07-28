@@ -8,11 +8,7 @@ import com.exe201.project.entity.Role;
 import com.exe201.project.entity.User;
 import com.exe201.project.enums.DurationType;
 import com.exe201.project.enums.UserStatus;
-import com.exe201.project.repository.CategoryRepository;
-import com.exe201.project.repository.FeatureRepository;
-import com.exe201.project.repository.MembershipPlanRepository;
-import com.exe201.project.repository.RoleRepository;
-import com.exe201.project.repository.UserRepository;
+import com.exe201.project.repository.*;
 import com.exe201.project.service.FeatureService;
 import com.exe201.project.service.MembershipPlanService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +21,6 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -56,6 +51,9 @@ public class AppInitConfig {
 
     @Autowired
     private MembershipPlanService membershipPlanService;
+
+    @Autowired
+    private MembershipFeatureRepository membershipFeatureRepository;
 
     @Bean
     public RestTemplate restTemplate() {
@@ -123,7 +121,11 @@ public class AppInitConfig {
             }
 
             // Initialize Membership Plans
-            if(membershipPlanRepository.count() == 0) {
+            if(membershipPlanRepository.count() == 0 || membershipFeatureRepository.count() == 0) {
+                if(membershipPlanRepository.count() > 0 && membershipFeatureRepository.count() == 0) {
+                    log.info("Membership features missing, recreating membership plans...");
+                    membershipPlanRepository.deleteAll();
+                }
                 initializeMembershipPlans();
                 log.info("Membership plans initialized.");
             }
@@ -163,8 +165,8 @@ public class AppInitConfig {
                 0.0, // No expiration
                 DurationType.MONTHLY,
                 Arrays.asList(
-                    new MembershipFeatureRequest(1L, 3, true, "Can create 3 wallets (1 Default, 1 Debt, 1 Savings)"),
-                    new MembershipFeatureRequest(2L, 3, true, "Can create different wallet types")
+                    new MembershipFeatureRequest(1L, 3, true, "Can create 3 wallets (1 Default, 1 Debt, 1 Savings)", 40),
+                    new MembershipFeatureRequest(2L, 3, true, "Can create different wallet types", 20)
                 )
             );
 
@@ -176,12 +178,12 @@ public class AppInitConfig {
                     1.0, // 1 month
                     DurationType.MONTHLY,
                     Arrays.asList(
-                            new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets"),
-                            new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types"),
-                            new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month"),
-                            new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories"),
-                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
-                            new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals")
+                            new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets", 100),
+                            new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types", null),
+                            new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month", 200),
+                            new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories", 400),
+                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts", null),
+                            new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals", 200)
                     )
             );
 
@@ -193,12 +195,12 @@ public class AppInitConfig {
                     1.0, // 1 month
                     DurationType.MONTHLY,
                     Arrays.asList(
-                            new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets"),
-                            new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types"),
-                            new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month"),
-                            new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories"),
-                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
-                            new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals")
+                            new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets", 100),
+                            new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types", null),
+                            new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month", 200),
+                            new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories", 400),
+                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts", null),
+                            new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals", 200)
                     )
             );
 
@@ -210,16 +212,16 @@ public class AppInitConfig {
                     1.0, // 1 month
                     DurationType.MONTHLY,
                     Arrays.asList(
-                            new MembershipFeatureRequest(1L, null, true, "Unlimited wallets"),
-                            new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types"),
-                            new MembershipFeatureRequest(3L, null, true, "Unlimited transactions"),
-                            new MembershipFeatureRequest(4L, null, true, "Full advanced analytics"),
-                            new MembershipFeatureRequest(5L, null, true, "Export to all formats"),
-                            new MembershipFeatureRequest(6L, null, true, "24/7 priority support"),
-                            new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories"),
-                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
-                            new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals"),
-                            new MembershipFeatureRequest(10L, null, true, "Multi-currency support")
+                            new MembershipFeatureRequest(1L, null, true, "Unlimited wallets", null),
+                            new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types", null),
+                            new MembershipFeatureRequest(3L, null, true, "Unlimited transactions", null),
+                            new MembershipFeatureRequest(4L, null, true, "Full advanced analytics", null),
+                            new MembershipFeatureRequest(5L, null, true, "Export to all formats", null),
+                            new MembershipFeatureRequest(6L, null, true, "24/7 priority support", null),
+                            new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories", null),
+                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts", null),
+                            new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals", null),
+                            new MembershipFeatureRequest(10L, null, true, "Multi-currency support", null)
                     )
             );
 
@@ -231,16 +233,16 @@ public class AppInitConfig {
                     1.0, // 1 month
                     DurationType.MONTHLY,
                     Arrays.asList(
-                            new MembershipFeatureRequest(1L, null, true, "Unlimited wallets"),
-                            new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types"),
-                            new MembershipFeatureRequest(3L, null, true, "Unlimited transactions"),
-                            new MembershipFeatureRequest(4L, null, true, "Full advanced analytics"),
-                            new MembershipFeatureRequest(5L, null, true, "Export to all formats"),
-                            new MembershipFeatureRequest(6L, null, true, "24/7 priority support"),
-                            new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories"),
-                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
-                            new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals"),
-                            new MembershipFeatureRequest(10L, null, true, "Multi-currency support")
+                            new MembershipFeatureRequest(1L, null, true, "Unlimited wallets", null),
+                            new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types", null),
+                            new MembershipFeatureRequest(3L, null, true, "Unlimited transactions", null),
+                            new MembershipFeatureRequest(4L, null, true, "Full advanced analytics", null),
+                            new MembershipFeatureRequest(5L, null, true, "Export to all formats", null),
+                            new MembershipFeatureRequest(6L, null, true, "24/7 priority support", null),
+                            new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories", null),
+                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts", null),
+                            new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals", null),
+                            new MembershipFeatureRequest(10L, null, true, "Multi-currency support", null)
                     )
             );
 
