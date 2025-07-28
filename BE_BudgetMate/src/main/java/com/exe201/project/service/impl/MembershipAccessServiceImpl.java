@@ -19,7 +19,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MembershipAccessServiceImpl implements MembershipAccessService {
-    
+
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final MembershipPlanService membershipPlanService;
@@ -48,11 +48,7 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
         }
 
         if ("Basic".equals(planName) || "Plus".equals(planName)) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-            Long purchaseCount = creditTransactionRepository.countFeaturePurchasesByUser(user, featureKey.toUpperCase());
-            return purchaseCount > 0;
+            return hasUserPurchasedFeature(userId, featureKey);
         }
 
         return false;
@@ -77,10 +73,7 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
                 subscription.getMembershipPlan().getId(), featureKey);
 
         if ("Basic".equals(planName) || "Plus".equals(planName)) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-            Long purchaseCount = creditTransactionRepository.countFeaturePurchasesByUser(user, featureKey.toUpperCase());
+            Long purchaseCount = getFeaturePurchaseCount(userId, featureKey);
 
             if (purchaseCount > 0) {
                 int currentLimit = (planLimit != null) ? planLimit : 0;
@@ -109,6 +102,18 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
     @Override
     public boolean canExportData(Long userId) {
         return hasFeatureAccess(userId, "EXPORT_DATA");
+    }
+
+    private boolean hasUserPurchasedFeature(Long userId, String featureKey) {
+        Long purchaseCount = getFeaturePurchaseCount(userId, featureKey);
+        return purchaseCount > 0;
+    }
+
+    private Long getFeaturePurchaseCount(Long userId, String featureKey) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        return creditTransactionRepository.countFeaturePurchasesByUser(user, featureKey.toUpperCase());
     }
 
     private Optional<Subscription> getActiveSubscription(Long userId) {

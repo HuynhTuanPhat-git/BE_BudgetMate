@@ -18,9 +18,14 @@ public interface CreditTransactionRepository extends JpaRepository<CreditTransac
 
     Page<CreditTransaction> findByUserOrderByTransactionTimeDesc(User user, Pageable pageable);
 
+    @Query("SELECT COALESCE(SUM(ct.creditSpent), 0) " +
+            "FROM CreditTransaction ct " +
+            "WHERE ct.user = :user")
+    Long getTotalCreditSpentByUser(@Param("user") User user);
+
     @Query("SELECT COUNT(ct) " +
             "FROM CreditTransaction ct " +
-            "WHERE ct.user = :user AND ct.membershipFeature.feature.featureKey = :featureKey")
+            "WHERE ct.user = :user AND ct.purchasableFeature.feature.featureKey = :featureKey")
     Long countFeaturePurchasesByUser(@Param("user") User user, @Param("featureKey") String featureKey);
 
     List<CreditTransaction> findByUserAndTransactionTimeBetween(User user, LocalDateTime startTime, LocalDateTime endTime);

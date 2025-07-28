@@ -11,9 +11,8 @@ import com.exe201.project.enums.UserStatus;
 import com.exe201.project.repository.*;
 import com.exe201.project.service.FeatureService;
 import com.exe201.project.service.MembershipPlanService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,125 +25,112 @@ import java.util.List;
 
 @Configuration
 @Slf4j
+@RequiredArgsConstructor
 public class AppInitConfig {
 
-    @Autowired
-    private RoleRepository roleRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
-    private FeatureRepository featureRepository;
-
-    @Autowired
-    private MembershipPlanRepository membershipPlanRepository;
-
-    @Autowired
-    private FeatureService featureService;
-
-    @Autowired
-    private MembershipPlanService membershipPlanService;
-
-    @Autowired
-    private MembershipFeatureRepository membershipFeatureRepository;
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final CategoryRepository categoryRepository;
+    private final FeatureRepository featureRepository;
+    private final MembershipPlanRepository membershipPlanRepository;
+    private final FeatureService featureService;
+    private final MembershipPlanService membershipPlanService;
+    private final MembershipFeatureRepository membershipFeatureRepository;
 
     @Bean
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5000); // 5 seconds
         factory.setReadTimeout(30000);   // 30 seconds
-
         return new RestTemplate(factory);
-    }
-
-    @Bean
-    public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        // Disable Unicode escaping to properly display Vietnamese characters
-        mapper.getFactory().configure(com.fasterxml.jackson.core.JsonGenerator.Feature.ESCAPE_NON_ASCII, false);
-        return mapper;
     }
 
     @Bean
     ApplicationRunner init() {
         return args -> {
-            if(categoryRepository.findByName("TRANSACTION REFACTOR").isEmpty()) {
-                Category category = new Category();
-                category.setName("TRANSACTION REFACTOR");
-                category.setColor("#007bff");
-                categoryRepository.save(category);
-                log.info("Category TRANSACTION REFACTOR initialized.");
-            }
-            if(categoryRepository.findByName("MEMBERSHIP").isEmpty()) {
-                Category category = new Category();
-                category.setName("MEMBERSHIP");
-                category.setColor("#fca130");
-                categoryRepository.save(category);
-                log.info("Category MEMBERSHIP initialized.");
-            }
-
-            if(roleRepository.findAll().isEmpty()){
-                Role roleAdmin = new Role();
-                roleAdmin.setName("ROLE_ADMIN");
-                roleRepository.save(roleAdmin);
-                Role roleUser = new Role();
-                roleUser.setName("ROLE_USER");
-                roleRepository.save(roleUser);
-                log.info("Roles initialized.");
-            }
-            if (userRepository.findByEmail("budgetmatecrop@gmail.com").isEmpty()) {
-                User admin = new User();
-                admin.setEmail("budgetmatecrop@gmail.com");
-                admin.setPassword(passwordEncoder.encode("123456")); // thay đổi mật khẩu theo nhu cầu
-                admin.setFullName("Admin");
-                admin.setStatus(UserStatus.ACTIVE);
-
-                Role adminRole = roleRepository.findByName("ROLE_ADMIN")
-                        .orElseThrow(() -> new RuntimeException("Error: Role ROLE_ADMIN not exist"));
-                admin.setRole(adminRole);
-
-                userRepository.save(admin);
-                log.info("Admin account initialized.");
-            }
-
-            // Initialize Features
-            if(featureRepository.count() == 0) {
-                initializeFeatures();
-                log.info("Features initialized.");
-            }
-
-            // Initialize Membership Plans
-            if(membershipPlanRepository.count() == 0 || membershipFeatureRepository.count() == 0) {
-                if(membershipPlanRepository.count() > 0 && membershipFeatureRepository.count() == 0) {
-                    log.info("Membership features missing, recreating membership plans...");
-                    membershipPlanRepository.deleteAll();
-                }
-                initializeMembershipPlans();
-                log.info("Membership plans initialized.");
-            }
+            initializeCategories();
+            initializeRoles();
+            initializeAdminUser();
+            initializeFeaturesIfNeeded();
+            initializeMembershipPlansIfNeeded();
         };
     }
 
+    private void initializeCategories() {
+        if (categoryRepository.findByName("TRANSACTION REFACTOR").isEmpty()) {
+            Category category = new Category();
+            category.setName("TRANSACTION REFACTOR");
+            category.setColor("#007bff");
+            categoryRepository.save(category);
+            log.info("Category TRANSACTION REFACTOR initialized.");
+        }
+
+        if (categoryRepository.findByName("MEMBERSHIP").isEmpty()) {
+            Category category = new Category();
+            category.setName("MEMBERSHIP");
+            category.setColor("#fca130");
+            categoryRepository.save(category);
+            log.info("Category MEMBERSHIP initialized.");
+        }
+    }
+
+    private void initializeRoles() {
+        if (roleRepository.findAll().isEmpty()) {
+            Role roleAdmin = new Role();
+            roleAdmin.setName("ROLE_ADMIN");
+            roleRepository.save(roleAdmin);
+
+            Role roleUser = new Role();
+            roleUser.setName("ROLE_USER");
+            roleRepository.save(roleUser);
+
+            log.info("Roles initialized.");
+        }
+    }
+
+    private void initializeAdminUser() {
+        if (userRepository.findByEmail("budgetmatecrop@gmail.com").isEmpty()) {
+            User admin = createAdminUser();
+            userRepository.save(admin);
+            log.info("Admin account initialized.");
+        }
+    }
+
+    private User createAdminUser() {
+        User admin = new User();
+        admin.setEmail("budgetmatecrop@gmail.com");
+        admin.setPassword(passwordEncoder.encode("123456"));
+        admin.setFullName("Admin");
+        admin.setStatus(UserStatus.ACTIVE);
+
+        Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+                .orElseThrow(() -> new RuntimeException("Error: Role ROLE_ADMIN not exist"));
+        admin.setRole(adminRole);
+
+        return admin;
+    }
+
+    private void initializeFeaturesIfNeeded() {
+        if (featureRepository.count() == 0) {
+            initializeFeatures();
+            log.info("Features initialized.");
+        }
+    }
+
+    private void initializeMembershipPlansIfNeeded() {
+        if (membershipPlanRepository.count() == 0 || membershipFeatureRepository.count() == 0) {
+            if (membershipPlanRepository.count() > 0 && membershipFeatureRepository.count() == 0) {
+                log.info("Membership features missing, recreating membership plans...");
+                membershipPlanRepository.deleteAll();
+            }
+            initializeMembershipPlans();
+            log.info("Membership plans initialized.");
+        }
+    }
+
     private void initializeFeatures() {
-        List<FeatureRequest> features = Arrays.asList(
-            new FeatureRequest("Create Wallet", "Basic ability to create a wallet", "CREATE_WALLET", true),
-            new FeatureRequest("Create Multiple Wallets", "Ability to create multiple wallets (savings, debt, etc.)", "CREATE_MULTIPLE_WALLETS", true),
-            new FeatureRequest("Unlimited Transactions", "No limit on number of transactions", "UNLIMITED_TRANSACTIONS", true),
-            new FeatureRequest("Advanced Analytics", "Access to advanced financial analytics and reports", "ADVANCED_ANALYTICS", true),
-            new FeatureRequest("Export Data", "Ability to export financial data to CSV/PDF", "EXPORT_DATA", true),
-            new FeatureRequest("Priority Support", "Access to priority customer support", "PRIORITY_SUPPORT", true),
-            new FeatureRequest("Custom Categories", "Create unlimited custom transaction categories", "CUSTOM_CATEGORIES", true),
-            new FeatureRequest("Budget Alerts", "Set up budget alerts and notifications", "BUDGET_ALERTS", true),
-            new FeatureRequest("Financial Goals", "Set and track financial goals", "FINANCIAL_GOALS", true),
-            new FeatureRequest("Multi Currency", "Support for multiple currencies", "MULTI_CURRENCY", true)
-        );
+        List<FeatureRequest> features = createFeatureRequests();
 
         for (FeatureRequest feature : features) {
             try {
@@ -155,135 +141,139 @@ public class AppInitConfig {
         }
     }
 
+    private List<FeatureRequest> createFeatureRequests() {
+        return Arrays.asList(
+                new FeatureRequest("Create Wallet", "Basic ability to create a wallet", "CREATE_WALLET", true),
+                new FeatureRequest("Create Multiple Wallets", "Ability to create multiple wallets (savings, debt, etc.)", "CREATE_MULTIPLE_WALLETS", true),
+                new FeatureRequest("Unlimited Transactions", "No limit on number of transactions", "UNLIMITED_TRANSACTIONS", true),
+                new FeatureRequest("Advanced Analytics", "Access to advanced financial analytics and reports", "ADVANCED_ANALYTICS", true),
+                new FeatureRequest("Export Data", "Ability to export financial data to CSV/PDF", "EXPORT_DATA", true),
+                new FeatureRequest("Priority Support", "Access to priority customer support", "PRIORITY_SUPPORT", true),
+                new FeatureRequest("Custom Categories", "Create unlimited custom transaction categories", "CUSTOM_CATEGORIES", true),
+                new FeatureRequest("Budget Alerts", "Set up budget alerts and notifications", "BUDGET_ALERTS", true),
+                new FeatureRequest("Financial Goals", "Set and track financial goals", "FINANCIAL_GOALS", true),
+                new FeatureRequest("Multi Currency", "Support for multiple currencies", "MULTI_CURRENCY", true)
+        );
+    }
+
     private void initializeMembershipPlans() {
         try {
-            // Free Plan
-            MembershipRequest freePlan = new MembershipRequest(
+            List<MembershipRequest> membershipPlans = createMembershipRequests();
+
+            for (MembershipRequest plan : membershipPlans) {
+                try {
+                    membershipPlanService.createMembershipPlan(plan);
+                    log.info("{} plan created successfully", plan.name());
+                } catch (Exception e) {
+                    log.warn("{} plan already exists or error: {}", plan.name(), e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error initializing membership plans: {}", e.getMessage());
+        }
+    }
+
+    private List<MembershipRequest> createMembershipRequests() {
+        return Arrays.asList(
+                createBasicPlan(),
+                createPlusMonthlyPlan(),
+                createPlusYearlyPlan(),
+                createPremiumMonthlyPlan(),
+                createPremiumYearlyPlan()
+        );
+    }
+
+    private MembershipRequest createBasicPlan() {
+        return new MembershipRequest(
                 "Basic",
                 "Basic features for personal use - includes 1 wallet of each type (Default, Debt, Savings)",
                 0.0,
                 0.0, // No expiration
                 DurationType.MONTHLY,
                 Arrays.asList(
-                    new MembershipFeatureRequest(1L, 3, true, "Can create 3 wallets (1 Default, 1 Debt, 1 Savings)", 40),
-                    new MembershipFeatureRequest(2L, 3, true, "Can create different wallet types", 20)
+                        new MembershipFeatureRequest(1L, 3, true, "Can create 3 wallets (1 Default, 1 Debt, 1 Savings)"),
+                        new MembershipFeatureRequest(2L, 3, true, "Can create different wallet types")
                 )
-            );
+        );
+    }
 
-            // Plus Month Plan
-            MembershipRequest plusMonthPlan = new MembershipRequest(
-                    "Plus",
-                    "Enhanced features for power users",
-                    29000.0,
-                    1.0, // 1 month
-                    DurationType.MONTHLY,
-                    Arrays.asList(
-                            new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets", 100),
-                            new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types", null),
-                            new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month", 200),
-                            new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories", 400),
-                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts", null),
-                            new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals", 200)
-                    )
-            );
+    private MembershipRequest createPlusMonthlyPlan() {
+        return new MembershipRequest(
+                "Plus",
+                "Enhanced features for power users",
+                29000.0,
+                1.0, // 1 month
+                DurationType.MONTHLY,
+                Arrays.asList(
+                        new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets"),
+                        new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types"),
+                        new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month"),
+                        new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories"),
+                        new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
+                        new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals")
+                )
+        );
+    }
 
-            // Plus Month Plan
-            MembershipRequest plusYearPlan = new MembershipRequest(
-                    "Plus",
-                    "Enhanced features for power users",
-                    29000.0,
-                    1.0, // 1 month
-                    DurationType.MONTHLY,
-                    Arrays.asList(
-                            new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets", 100),
-                            new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types", null),
-                            new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month", 200),
-                            new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories", 400),
-                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts", null),
-                            new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals", 200)
-                    )
-            );
+    private MembershipRequest createPlusYearlyPlan() {
+        return new MembershipRequest(
+                "Plus",
+                "Enhanced features for power users - Yearly",
+                290000.0, // 10 months price for yearly subscription
+                12.0, // 12 months
+                DurationType.YEARLY,
+                Arrays.asList(
+                        new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets"),
+                        new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types"),
+                        new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month"),
+                        new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories"),
+                        new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
+                        new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals")
+                )
+        );
+    }
 
-            // Premium Plan
-            MembershipRequest premiumMonthPlan = new MembershipRequest(
-                    "Premium",
-                    "Full access to all features",
-                    49000.0,
-                    1.0, // 1 month
-                    DurationType.MONTHLY,
-                    Arrays.asList(
-                            new MembershipFeatureRequest(1L, null, true, "Unlimited wallets", null),
-                            new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types", null),
-                            new MembershipFeatureRequest(3L, null, true, "Unlimited transactions", null),
-                            new MembershipFeatureRequest(4L, null, true, "Full advanced analytics", null),
-                            new MembershipFeatureRequest(5L, null, true, "Export to all formats", null),
-                            new MembershipFeatureRequest(6L, null, true, "24/7 priority support", null),
-                            new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories", null),
-                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts", null),
-                            new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals", null),
-                            new MembershipFeatureRequest(10L, null, true, "Multi-currency support", null)
-                    )
-            );
+    private MembershipRequest createPremiumMonthlyPlan() {
+        return new MembershipRequest(
+                "Premium",
+                "Full access to all features",
+                49000.0,
+                1.0, // 1 month
+                DurationType.MONTHLY,
+                Arrays.asList(
+                        new MembershipFeatureRequest(1L, null, true, "Unlimited wallets"),
+                        new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types"),
+                        new MembershipFeatureRequest(3L, null, true, "Unlimited transactions"),
+                        new MembershipFeatureRequest(4L, null, true, "Full advanced analytics"),
+                        new MembershipFeatureRequest(5L, null, true, "Export to all formats"),
+                        new MembershipFeatureRequest(6L, null, true, "24/7 priority support"),
+                        new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories"),
+                        new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
+                        new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals"),
+                        new MembershipFeatureRequest(10L, null, true, "Multi-currency support")
+                )
+        );
+    }
 
-            // Premium Plan
-            MembershipRequest premiumYearPlan = new MembershipRequest(
-                    "Premium",
-                    "Full access to all features",
-                    49000.0,
-                    1.0, // 1 month
-                    DurationType.MONTHLY,
-                    Arrays.asList(
-                            new MembershipFeatureRequest(1L, null, true, "Unlimited wallets", null),
-                            new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types", null),
-                            new MembershipFeatureRequest(3L, null, true, "Unlimited transactions", null),
-                            new MembershipFeatureRequest(4L, null, true, "Full advanced analytics", null),
-                            new MembershipFeatureRequest(5L, null, true, "Export to all formats", null),
-                            new MembershipFeatureRequest(6L, null, true, "24/7 priority support", null),
-                            new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories", null),
-                            new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts", null),
-                            new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals", null),
-                            new MembershipFeatureRequest(10L, null, true, "Multi-currency support", null)
-                    )
-            );
-
-            // Create membership plans
-            try { 
-                membershipPlanService.createMembershipPlan(freePlan); 
-                log.info("Free plan created successfully");
-            } catch (Exception e) { 
-                log.warn("Free plan already exists or error: {}", e.getMessage());
-            }
-
-            try {
-                membershipPlanService.createMembershipPlan(plusMonthPlan);
-                log.info("Plus plan created successfully");
-            } catch (Exception e) {
-                log.warn("Plus plan already exists or error: {}", e.getMessage());
-            }
-
-            try {
-                membershipPlanService.createMembershipPlan(premiumMonthPlan);
-                log.info("Premium plan created successfully");
-            } catch (Exception e) {
-                log.warn("Premium plan already exists or error: {}", e.getMessage());
-            }
-
-            try {
-                membershipPlanService.createMembershipPlan(plusYearPlan);
-                log.info("Plus plan created successfully");
-            } catch (Exception e) {
-                log.warn("Plus plan already exists or error: {}", e.getMessage());
-            }
-
-            try {
-                membershipPlanService.createMembershipPlan(premiumYearPlan);
-                log.info("Premium plan created successfully");
-            } catch (Exception e) {
-                log.warn("Premium plan already exists or error: {}", e.getMessage());
-            }
-
-        } catch (Exception e) {
-            log.error("Error initializing membership plans: {}", e.getMessage());
-        }
+    private MembershipRequest createPremiumYearlyPlan() {
+        return new MembershipRequest(
+                "Premium",
+                "Full access to all features - Yearly",
+                490000.0, // 10 months price for yearly subscription
+                12.0, // 12 months
+                DurationType.YEARLY,
+                Arrays.asList(
+                        new MembershipFeatureRequest(1L, null, true, "Unlimited wallets"),
+                        new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types"),
+                        new MembershipFeatureRequest(3L, null, true, "Unlimited transactions"),
+                        new MembershipFeatureRequest(4L, null, true, "Full advanced analytics"),
+                        new MembershipFeatureRequest(5L, null, true, "Export to all formats"),
+                        new MembershipFeatureRequest(6L, null, true, "24/7 priority support"),
+                        new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories"),
+                        new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
+                        new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals"),
+                        new MembershipFeatureRequest(10L, null, true, "Multi-currency support")
+                )
+        );
     }
 }
