@@ -27,10 +27,10 @@ public class AnalysisController {
     @GetMapping("/finance")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
-            summary = "Get financial analysis for the current user",
+            summary = "Get financial analysis for the current user (INTERNAL)",
             description = "Retrieves financial analysis data (income, expenses, debts, etc.) for the current user, based on the specified analysis type."
     )
-    public ResponseEntity<ApiResponse<FinanceAnalysisResponse>> getFinanceAnalysis(
+    public ResponseEntity<ApiResponse<Object>> getFinanceAnalysisInternal(
             @Parameter(
                     description = "Type of analysis to perform (MONTHLY, INSTANTLY)",
                     required = true,
@@ -39,11 +39,34 @@ public class AnalysisController {
             @RequestParam AnalysisType type) {
 
         User user = userService.getAuthenticatedUser();
-        FinanceAnalysisResponse analysis = analysisService.getProfileAnalysis(user.getId(), type);
+        Object analysis = analysisService.getProfileAnalysis(user.getId(), type);
 
-        return ResponseEntity.ok(ApiResponse.<FinanceAnalysisResponse>builder()
+        return ResponseEntity.ok(ApiResponse.<Object>builder()
                 .data(analysis)
                 .message("Finance analysis retrieved successfully")
                 .build());
     }
+
+//    @GetMapping("/finance/ex")
+//    @SecurityRequirement(name = "bearerAuth")
+//    @Operation(
+//            summary = "Get financial analysis for the current user (EXTERNAL)",
+//            description = "Retrieves financial analysis data (income, expenses, debts, etc.) for the current user, based on the specified analysis type."
+//    )
+//    public ResponseEntity<ApiResponse<String>> getFinanceAnalysisExternal(
+//            @Parameter(
+//                    description = "Type of analysis to perform (MONTHLY, INSTANTLY)",
+//                    required = true,
+//                    schema = @Schema(implementation = AnalysisType.class)
+//            )
+//            @RequestParam AnalysisType type) {
+//
+//        User user = userService.getAuthenticatedUser();
+//        String analysis = analysisService.getProfileAnalysis(user.getId(), type);
+//
+//        return ResponseEntity.ok(ApiResponse.<String>builder()
+//                .data(analysis)
+//                .message("Finance analysis retrieved successfully")
+//                .build());
+//    }
 }

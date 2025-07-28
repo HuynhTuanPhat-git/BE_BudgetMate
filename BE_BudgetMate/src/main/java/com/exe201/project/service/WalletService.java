@@ -14,4 +14,7 @@ public interface WalletService {
     List<WalletResponse> getWalletsByUserId(Long userId);
     Double getTotalBalance();
     Double getTotalBalanceByType(String type);
+    
+    // Method to manually trigger processing of expired SAVINGS wallets (for testing)
+    void processExpiredSavingsWallets();
 }

@@ -8,7 +8,9 @@ import com.exe201.project.entity.Category;
 import com.exe201.project.entity.Transaction;
 import com.exe201.project.entity.User;
 import com.exe201.project.entity.Wallets;
+import com.exe201.project.enums.WalletType;
 import com.exe201.project.exception.ResourceNotFoundException;
+import com.exe201.project.exception.WrongTypeException;
 import com.exe201.project.mapper.TransactionMapper;
 import com.exe201.project.repository.CategoryRepository;
 import com.exe201.project.repository.TransactionRepository;
@@ -45,6 +47,10 @@ public class TransactionServiceImpl implements TransactionService {
         // Verify wallet belongs to user
         Wallets wallet = walletRepository.findByIdAndUserId(request.walletId(), user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+
+        if (wallet.getType().equals(WalletType.SAVINGS)) {
+            throw new WrongTypeException("Can not add transaction into savings wallet");
+        }
 
         Category category = null;
         if (request.categoryId() != null) {

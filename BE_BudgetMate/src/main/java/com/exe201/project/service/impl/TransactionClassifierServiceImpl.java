@@ -26,12 +26,12 @@ public class TransactionClassifierServiceImpl implements TransactionClassifierSe
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${python.api.url}")
-    private String pythonApiUrl;
+    @Value("${ai.api.url.predict}")
+    private String transactionPredictInternalApiUrl;
 
     public TransactionPredictionTempResponse predictTransaction(String text) {
         try {
-            String url = pythonApiUrl + "/predict";
+            String url = transactionPredictInternalApiUrl;
 
             // Prepare request body
             Map<String, String> requestBody = new HashMap<>();
@@ -73,14 +73,14 @@ public class TransactionClassifierServiceImpl implements TransactionClassifierSe
         }
     }
 
-    public boolean isServiceHealthy() {
-        try {
-            String url = pythonApiUrl + "/health";
-            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
-            return response.getStatusCode() == HttpStatus.OK;
-        } catch (Exception e) {
-            log.error("Health check failed: {}", e.getMessage());
-            return false;
-        }
-    }
+//    public boolean isServiceHealthy() {
+//        try {
+//            String url = pythonApiUrl + "/health";
+//            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+//            return response.getStatusCode() == HttpStatus.OK;
+//        } catch (Exception e) {
+//            log.error("Health check failed: {}", e.getMessage());
+//            return false;
+//        }
+//    }
 }
