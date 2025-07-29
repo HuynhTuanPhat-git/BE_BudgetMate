@@ -4,18 +4,14 @@ import com.exe201.project.dto.request.feature.PurchaseFeatureRequest;
 import com.exe201.project.dto.response.PagedResponse;
 import com.exe201.project.dto.response.credit_transaction.CreditTransactionResponse;
 import com.exe201.project.dto.response.feature.FeaturePurchaseResponse;
-import com.exe201.project.entity.CreditTransaction;
-import com.exe201.project.entity.MembershipFeature;
-import com.exe201.project.entity.Subscription;
-import com.exe201.project.entity.User;
+import com.exe201.project.entity.*;
 import com.exe201.project.exception.BadRequestException;
 import com.exe201.project.exception.InsufficientBalanceException;
 import com.exe201.project.exception.ResourceNotFoundException;
-import com.exe201.project.repository.CreditTransactionRepository;
-import com.exe201.project.repository.MembershipFeatureRepository;
-import com.exe201.project.repository.SubscriptionRepository;
-import com.exe201.project.repository.UserRepository;
+import com.exe201.project.repository.*;
 import com.exe201.project.service.CreditService;
+import com.exe201.project.service.MembershipPlanService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -23,7 +19,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -33,20 +31,25 @@ import java.util.Optional;
 public class CreditServiceImpl implements CreditService {
 
     private final UserRepository userRepository;
-    private final MembershipFeatureRepository membershipFeatureRepository;
     private final CreditTransactionRepository creditTransactionRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final PurchasableFeatureRepository purchasableFeatureRepository;
+    private final MembershipPlanService membershipPlanService;
 
     @Override
     public FeaturePurchaseResponse purchaseFeature(Long userId, PurchaseFeatureRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        MembershipFeature membershipFeature = membershipFeatureRepository.findById(request.membershipFeatureId())
-                .orElseThrow(() -> new ResourceNotFoundException("Membership feature not found with id: " + request.membershipFeatureId()));
+        PurchasableFeature purchasableFeature = purchasableFeatureRepository.findById(request.purchasableFeatureId())
+                .orElseThrow(() -> new ResourceNotFoundException("Purchasable feature not found"));
+
+        if (!purchasableFeature.getIsActive()) {
+            throw new BadRequestException("This feature is not available for purchase");
+        }
 
         Optional<Subscription> currentSubscription = subscriptionRepository
-                .findActiveSubscriptionByUserId(userId, java.time.LocalDate.now());
+                .findActiveSubscriptionByUserId(userId, LocalDate.now());
 
         if (currentSubscription.isEmpty()) {
             throw new BadRequestException("User must have an active subscription to purchase features");
@@ -58,18 +61,19 @@ public class CreditServiceImpl implements CreditService {
             throw new BadRequestException("Premium users have access to all features");
         }
 
-        Long userMembershipPlanId = currentSubscription.get().getMembershipPlan().getId();
-        Long featureMembershipPlanId = membershipFeature.getMembershipPlan().getId();
-
-        if (!userMembershipPlanId.equals(featureMembershipPlanId)) {
-            throw new BadRequestException("This feature does not belong to your current membership plan");
+        if (!canPlanPurchaseFeature(purchasableFeature, currentPlanName)) {
+            throw new BadRequestException("This feature is not available for your current membership plan");
         }
 
-        if (membershipFeature.getCreditPrice() == null || membershipFeature.getCreditPrice() <= 0) {
-            throw new BadRequestException("This feature cannot be purchased with credits");
+        boolean hasFeatureInPlan = membershipPlanService.hasFeatureAccess(
+                currentSubscription.get().getMembershipPlan().getId(),
+                purchasableFeature.getFeature().getFeatureKey());
+
+        if (hasFeatureInPlan) {
+            throw new BadRequestException("You already have access to this feature through your membership plan");
         }
 
-        Integer creditPrice = membershipFeature.getCreditPrice();
+        Integer creditPrice = purchasableFeature.getCreditPrice();
         if (user.getCredits() < creditPrice) {
             throw new InsufficientBalanceException("Insufficient credits. Required: " + creditPrice + ", Available: " + user.getCredits());
         }
@@ -79,23 +83,38 @@ public class CreditServiceImpl implements CreditService {
 
         CreditTransaction transaction = new CreditTransaction();
         transaction.setUser(user);
-        transaction.setMembershipFeature(membershipFeature);
+        transaction.setPurchasableFeature(purchasableFeature);
         transaction.setCreditSpent(creditPrice);
+        transaction.setUsageGranted(purchasableFeature.getUsageLimit());
         transaction.setTransactionTime(LocalDateTime.now());
-        transaction.setDescription("Purchased feature: " + membershipFeature.getFeature().getName());
+        transaction.setDescription("Purchased feature: " + purchasableFeature.getFeature().getName());
 
         creditTransactionRepository.save(transaction);
 
         log.info("User {} purchased feature {} for {} credits",
-                userId, membershipFeature.getFeature().getFeatureKey(), creditPrice);
+                userId, purchasableFeature.getFeature().getFeatureKey(), creditPrice);
 
         return FeaturePurchaseResponse.builder()
-                .featureName(membershipFeature.getFeature().getName())
-                .featureKey(membershipFeature.getFeature().getFeatureKey())
+                .featureName(purchasableFeature.getFeature().getName())
+                .featureKey(purchasableFeature.getFeature().getFeatureKey())
                 .creditSpent(creditPrice)
                 .remainingCredits(user.getCredits())
                 .message("Feature purchased successfully!")
                 .build();
+    }
+
+    private boolean canPlanPurchaseFeature(PurchasableFeature purchasableFeature, String planName) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            List<String> targetPlans = objectMapper.readValue(
+                    purchasableFeature.getTargetMembershipPlans(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)
+            );
+            return targetPlans.contains(planName);
+        } catch (Exception e) {
+            log.error("Error parsing target membership plans: {}", e.getMessage());
+            return false;
+        }
     }
 
     @Override
@@ -110,13 +129,14 @@ public class CreditServiceImpl implements CreditService {
         Page<CreditTransactionResponse> responsePage = transactionPage.map(transaction ->
                 CreditTransactionResponse.builder()
                         .id(transaction.getId())
-                        .featureName(transaction.getMembershipFeature().getFeature().getName())
-                        .featureKey(transaction.getMembershipFeature().getFeature().getFeatureKey())
+                        .featureName(transaction.getPurchasableFeature().getFeature().getName())
+                        .featureKey(transaction.getPurchasableFeature().getFeature().getFeatureKey())
                         .creditSpent(transaction.getCreditSpent())
                         .transactionTime(transaction.getTransactionTime())
                         .description(transaction.getDescription())
                         .build()
         );
+
         return new PagedResponse<>(responsePage);
     }
 }
