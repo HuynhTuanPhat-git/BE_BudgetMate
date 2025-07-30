@@ -11,6 +11,7 @@ import com.exe201.project.exception.ResourceNotFoundException;
 import com.exe201.project.repository.*;
 import com.exe201.project.service.CreditService;
 import com.exe201.project.service.MembershipPlanService;
+import com.exe201.project.service.UserPurchasedFeatureService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class CreditServiceImpl implements CreditService {
     private final SubscriptionRepository subscriptionRepository;
     private final PurchasableFeatureRepository purchasableFeatureRepository;
     private final MembershipPlanService membershipPlanService;
+    private final UserPurchasedFeatureService userPurchasedFeatureService;
 
     @Override
     public FeaturePurchaseResponse purchaseFeature(Long userId, PurchaseFeatureRequest request) {
@@ -56,21 +58,21 @@ public class CreditServiceImpl implements CreditService {
         }
 
         String currentPlanName = currentSubscription.get().getMembershipPlan().getName();
+        String featureKey = purchasableFeature.getFeature().getFeatureKey();
 
         if ("Premium".equals(currentPlanName)) {
-            throw new BadRequestException("Premium users have access to all features");
+            throw new BadRequestException("Premium users have unlimited access to all features");
         }
 
         if (!canPlanPurchaseFeature(purchasableFeature, currentPlanName)) {
             throw new BadRequestException("This feature is not available for your current membership plan");
         }
 
-        boolean hasFeatureInPlan = membershipPlanService.hasFeatureAccess(
-                currentSubscription.get().getMembershipPlan().getId(),
-                purchasableFeature.getFeature().getFeatureKey());
+        Integer membershipLimit = membershipPlanService.getFeatureLimit(
+                currentSubscription.get().getMembershipPlan().getId(), featureKey);
 
-        if (hasFeatureInPlan) {
-            throw new BadRequestException("You already have access to this feature through your membership plan");
+        if (membershipLimit == null) {
+            throw new BadRequestException("You already have unlimited access to this feature through your membership plan");
         }
 
         Integer creditPrice = purchasableFeature.getCreditPrice();
@@ -91,8 +93,11 @@ public class CreditServiceImpl implements CreditService {
 
         creditTransactionRepository.save(transaction);
 
-        log.info("User {} purchased feature {} for {} credits",
-                userId, purchasableFeature.getFeature().getFeatureKey(), creditPrice);
+        userPurchasedFeatureService.addPurchasedFeature(
+                userId,
+                request.purchasableFeatureId().toString(),
+                purchasableFeature.getUsageLimit()
+        );
 
         return FeaturePurchaseResponse.builder()
                 .featureName(purchasableFeature.getFeature().getName())
