@@ -10,20 +10,21 @@ import com.exe201.project.entity.Wallets;
 import com.exe201.project.enums.AnalysisType;
 import com.exe201.project.enums.WalletStatus;
 import com.exe201.project.enums.WalletType;
+import com.exe201.project.exception.OutOfPermissionException;
 import com.exe201.project.exception.ResourceNotFoundException;
 import com.exe201.project.repository.TransactionRepository;
 import com.exe201.project.repository.UserRepository;
 import com.exe201.project.repository.WalletRepository;
 import com.exe201.project.service.AnalysisService;
+import com.exe201.project.service.MembershipAccessService;
+import com.exe201.project.service.UserPurchasedFeatureService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -41,6 +42,8 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
+    private final UserPurchasedFeatureService userPurchasedFeatureService;
+    private final MembershipAccessService membershipAccessService;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
@@ -48,11 +51,13 @@ public class AnalysisServiceImpl implements AnalysisService {
     private String budgetReviewInternalApiUrl;
 
     @Override
+    @Transactional
     public Object getProfileAnalysis(Long userId, AnalysisType type) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Lấy ví DEFAULT của user
+        handleAdvancedAnalyticsPermission(userId);
+
         Wallets defaultWallet = walletRepository.findByUserAndType(user, WalletType.DEFAULT)
                 .orElseThrow(() -> new ResourceNotFoundException("Default wallet not found"));
 
@@ -72,11 +77,9 @@ public class AnalysisServiceImpl implements AnalysisService {
             currentMonthStart = YearMonth.now().atDay(1).atStartOfDay();
         }
 
-        // Lấy transactions theo thời gian
         List<Transaction> transactions = transactionRepository
                 .findByWalletAndTransactionTimeBetweenAndIsDeletedFalse(defaultWallet, startTime, endTime);
 
-        // Tính toán income và expense
         double totalIncome = transactions.stream()
                 .filter(t -> t.getAmount() > 0)
                 .mapToDouble(Transaction::getAmount)
@@ -87,9 +90,8 @@ public class AnalysisServiceImpl implements AnalysisService {
                 .mapToDouble(Transaction::getAmount)
                 .sum());
 
-        // Tính currentExpense cho INSTANTLY
         Double currentExpense = null;
-        if (type == AnalysisType.INSTANTLY && currentMonthStart != null) {
+        if (type == AnalysisType.INSTANTLY) {
             List<Transaction> currentMonthTransactions = transactionRepository
                     .findByWalletAndTransactionTimeBetweenAndIsDeletedFalse(
                             defaultWallet, currentMonthStart, LocalDateTime.now());
@@ -100,7 +102,6 @@ public class AnalysisServiceImpl implements AnalysisService {
                     .sum());
         }
 
-        // Tính toán transactions theo category
         Map<Category, List<Transaction>> transactionsByCategory = transactions.stream()
                 .collect(Collectors.groupingBy(Transaction::getCategory));
 
@@ -127,8 +128,8 @@ public class AnalysisServiceImpl implements AnalysisService {
                 })
                 .collect(Collectors.toList());
 
-        // Lấy các ví nợ (DEBT wallets) với status ACTIVE
-        List<Wallets> debtWallets = walletRepository.findByUserAndTypeAndStatus(user, WalletType.DEBT, WalletStatus.ACTIVE);
+        List<Wallets> debtWallets = walletRepository.findByUserAndTypeAndStatus(
+                user, WalletType.DEBT, WalletStatus.ACTIVE);
         List<DeptAnalysisResponse> depts = debtWallets.stream()
                 .map(wallet -> DeptAnalysisResponse.builder()
                         .name(wallet.getName())
@@ -284,11 +285,8 @@ public class AnalysisServiceImpl implements AnalysisService {
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("Successfully sent analysis data to internal API for user ID: {}. Response: {}",
                         userId, response.getBody());
-                
-                // Parse JSON response to avoid double encoding
                 try {
-                    Object parsedResponse = objectMapper.readValue(response.getBody(), Object.class);
-                    return parsedResponse;
+                    return objectMapper.readValue(response.getBody(), Object.class);
                 } catch (Exception parseException) {
                     log.warn("Failed to parse JSON response, returning raw string: {}", parseException.getMessage());
                     return response.getBody();
@@ -304,6 +302,22 @@ public class AnalysisServiceImpl implements AnalysisService {
             log.error("Failed to send analysis data to internal API for user ID: {}. Error: {}",
                     userId, e.getMessage(), e);
             return "Failed to get analysis data to internal API for user ID: " + userId;
+        }
+    }
+
+    private void handleAdvancedAnalyticsPermission(Long userId) {
+        boolean hasMembershipAccess = membershipAccessService.hasAdvancedAnalytics(userId);
+
+        if (hasMembershipAccess) {
+            return;
+        }
+
+        boolean hasRemainingUsage = userPurchasedFeatureService.hasRemainingUsage(userId, "ADVANCED_ANALYTICS");
+
+        if (hasRemainingUsage) {
+            userPurchasedFeatureService.consumeFeatureUsage(userId, "ADVANCED_ANALYTICS");
+        } else {
+            throw new OutOfPermissionException("You don't have access to advanced analytics");
         }
     }
 } 
