@@ -7,4 +7,5 @@ public interface MembershipAccessService {
     boolean canCreateDeptWallets(Long userId);
     boolean hasAdvancedAnalytics(Long userId);
     boolean canExportData(Long userId);
+    Integer getMembershipPlanLimit(Long userId, String featureKey);
 }
