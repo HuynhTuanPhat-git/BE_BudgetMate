@@ -58,6 +58,7 @@ public class AppInitConfig {
     }
 
     private void initializeCategories() {
+        // Initialize system categories first
         if (categoryRepository.findByName("TRANSACTION REFACTOR").isEmpty()) {
             Category category = new Category();
             category.setName("TRANSACTION REFACTOR");
@@ -72,6 +73,62 @@ public class AppInitConfig {
             category.setColor("#fca130");
             categoryRepository.save(category);
             log.info("Category MEMBERSHIP initialized.");
+        }
+
+        // Initialize user categories
+        initializeUserCategories();
+    }
+
+    private void initializeUserCategories() {
+        String[][] categoryData = {
+                { "appliances"      , "#5D6D7E" },  // Slate Blue – thiết bị gia dụng: cảm giác bền bỉ, hiện đại
+                { "beauty"          , "#D62AD0" },  // Fuchsia – làm đẹp: nữ tính, nổi bật
+                { "bills"           , "#EB984E" },  // Pumpkin Orange – hóa đơn: ấm áp, dễ nhận diện
+                { "charity"         , "#FFC0CB" },  // Light Pink – từ thiện: nhẹ nhàng, nhân văn
+                { "cosmetics"       , "#FF77FF" },  // Hot Pink – mỹ phẩm: tươi trẻ, nổi bật
+                { "credit card"     , "#C0392B" },  // Dark Red – thẻ tín dụng: nghiêm túc, cảnh báo chi tiêu
+                { "dining out"      , "#E74C3C" },  // Tomato Red – ăn uống ngoài: ấm áp, kích thích khẩu vị
+                { "e-wallet"        , "#17A589" },  // Teal – ví điện tử: hiện đại, tin cậy
+                { "education"       , "#3498DB" },  // Sky Blue – giáo dục: tươi sáng, truyền cảm hứng
+                { "electronics"     , "#1F618D" },  // Majorelle Blue – điện tử: công nghệ, đẳng cấp
+                { "entertainment"   , "#8E44AD" },  // Purple – giải trí: sáng tạo, thú vị
+                { "fashion"         , "#D35400" },  // Vermilion – thời trang: cá tính, nổi bật
+                { "gifts"           , "#F39C12" },  // Amber – quà tặng: ấm áp, thân thiện
+                { "groceries"       , "#7D6608" },  // Olive – thực phẩm: tự nhiên, mộc mạc
+                { "health"          , "#27AE60" },  // Emerald – sức khỏe: tươi mát, hy vọng
+                { "housing"         , "#6E2C00" },  // Chestnut – nhà ở: vững chắc, an toàn
+                { "income"          , "#2ECC71" },  // Mint Green – thu nhập: tích cực, tăng trưởng
+                { "insurance"       , "#145A32" },  // Forest Green – bảo hiểm: tin cậy, bền vững
+                { "investing"       , "#154360" },  // Midnight Blue – đầu tư: sâu sắc, chuyên nghiệp
+                { "loan"            , "#A93226" },  // Brick Red – vay vốn: cảnh báo, quan trọng
+                { "others"          , "#95A5A6" },  // Gray – khác: trung tính, không nổi bật
+                { "restaurant"      , "#AF601A" },  // Rust – nhà hàng: ấm cúng, sang trọng
+                { "salary"          , "#1ABC9C" },  // Turquoise – lương: rõ ràng, tin cậy
+                { "shopping"        , "#9B59B6" },  // Amethyst – mua sắm: sang trọng, thú vị
+                { "sports"          , "#1F8A70" },  // Teal Dark – thể thao: năng động, khỏe khoắn
+                { "tax"             , "#6C3483" },  // Plum – thuế: trang trọng, nghiêm túc
+                { "transportation"  , "#F4D03F" },  // Sunflower – giao thông: nổi bật, dễ nhận biết
+                { "travel"          , "#117864" },  // Deep Teal – du lịch: mát mẻ, khám phá
+                { "utilities"       , "#D68910" },  // Sienna – tiện ích: ấm áp, gần gũi
+                { "vehicle"         , "#2E86C1" }  // Steel Blue – phương tiện: tin cậy, chắc chắn
+        };
+
+        int initializedCount = 0;
+        for (String[] data : categoryData) {
+            String name = data[0];
+            String color = data[1];
+            
+            if (categoryRepository.findByName(name).isEmpty()) {
+                Category category = new Category();
+                category.setName(name);
+                category.setColor(color);
+                categoryRepository.save(category);
+                initializedCount++;
+            }
+        }
+        
+        if (initializedCount > 0) {
+            log.info("{} user categories initialized.", initializedCount);
         }
     }
 
