@@ -36,7 +36,7 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
         Subscription subscription = activeSubscription.get();
         String planName = subscription.getMembershipPlan().getName();
 
-        if ("Premium".equals(planName)) {
+        if ("Premium".equalsIgnoreCase(planName)) {
             return true;
         }
 
@@ -47,7 +47,7 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
             return true;
         }
 
-        if ("Basic".equals(planName) || "Plus".equals(planName)) {
+        if ("Basic".equalsIgnoreCase(planName) || "Plus".equalsIgnoreCase(planName)) {
             return hasUserPurchasedFeature(userId, featureKey);
         }
 
@@ -85,13 +85,13 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
     }
 
     @Override
-    public boolean canCreateWallet(Long userId) {
-        return hasFeatureAccess(userId, "CREATE_WALLET");
+    public boolean canCreateSavingsWallets(Long userId) {
+        return hasFeatureAccess(userId, "CREATE_SAVINGS_WALLETS");
     }
 
     @Override
-    public boolean canCreateMultipleWallets(Long userId) {
-        return hasFeatureAccess(userId, "CREATE_MULTIPLE_WALLETS");
+    public boolean canCreateDeptWallets(Long userId) {
+        return hasFeatureAccess(userId, "CREATE_DEPT_WALLETS");
     }
 
     @Override

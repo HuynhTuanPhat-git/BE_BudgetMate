@@ -64,16 +64,43 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
 
     @Override
     public List<MembershipRevenueResponse> getMembershipRevenueBreakdown(LocalDate startDate, LocalDate endDate) {
+        log.info("Getting membership revenue breakdown from {} to {}", startDate, endDate);
+        
+        // Debug: Get all subscriptions in date range first
+        List<Subscription> allSubscriptions = subscriptionRepository.findCompletedSubscriptionsBetweenDates(startDate, endDate);
+        log.info("Found {} paid subscriptions in date range", allSubscriptions.size());
+        
+        // Debug: Check payment statuses
+        if (allSubscriptions.isEmpty()) {
+            log.warn("No paid subscriptions found. Let's check all subscriptions in this period.");
+            // Get all subscriptions regardless of payment status for debugging
+            List<Subscription> allSubsRegardlessOfStatus = subscriptionRepository.findAll()
+                    .stream()
+                    .filter(s -> !s.getStartDate().isBefore(startDate) && !s.getStartDate().isAfter(endDate))
+                    .toList();
+            log.info("Total subscriptions in date range (any status): {}", allSubsRegardlessOfStatus.size());
+            
+            allSubsRegardlessOfStatus.forEach(s -> 
+                log.info("Subscription: ID={}, StartDate={}, PaymentStatus={}, MembershipPlan={}", 
+                    s.getId(), s.getStartDate(), s.getPaymentStatus(), 
+                    s.getMembershipPlan() != null ? s.getMembershipPlan().getName() : "null"));
+        }
+        
         List<Object[]> results = subscriptionRepository.getMembershipRevenueBreakdown(startDate, endDate);
+        log.info("Query returned {} membership revenue results", results.size());
         
         return results.stream()
-                .map(row -> MembershipRevenueResponse.builder()
-                        .membershipPlanId((Long) row[0])
-                        .membershipName((String) row[1])
-                        .revenue((Double) row[2])
-                        .subscriptionCount(((Long) row[3]).intValue())
-                        .averageOrderValue((Double) row[2] / ((Long) row[3]).intValue())
-                        .build())
+                .map(row -> {
+                    log.info("Processing row: MembershipId={}, Name={}, Revenue={}, Count={}", 
+                        row[0], row[1], row[2], row[3]);
+                    return MembershipRevenueResponse.builder()
+                            .membershipPlanId((Long) row[0])
+                            .membershipName((String) row[1])
+                            .revenue((Double) row[2])
+                            .subscriptionCount(((Long) row[3]).intValue())
+                            .averageOrderValue((Double) row[2] / ((Long) row[3]).intValue())
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 
@@ -109,7 +136,7 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
     }
 
     private List<DailyRevenueResponse> getDailyRevenueBreakdown(LocalDate startDate, LocalDate endDate) {
-        List<Subscription> subscriptions = subscriptionRepository.findPaidSubscriptionsBetweenDates(startDate, endDate);
+        List<Subscription> subscriptions = subscriptionRepository.findCompletedSubscriptionsBetweenDates(startDate, endDate);
         
         Map<LocalDate, List<Subscription>> subscriptionsByDate = subscriptions.stream()
                 .collect(Collectors.groupingBy(Subscription::getStartDate));

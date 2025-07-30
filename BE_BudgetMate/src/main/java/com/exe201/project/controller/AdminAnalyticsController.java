@@ -115,4 +115,39 @@ public class AdminAnalyticsController {
                 .data(analytics)
                 .build());
     }
+
+    @GetMapping("/debug/subscriptions")
+    @Operation(summary = "Debug - Get all subscriptions", description = "Debug endpoint to check all subscriptions in database")
+    public ResponseEntity<ApiResponse<String>> debugSubscriptions(
+            @RequestParam(required = false) 
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            
+            @RequestParam(required = false) 
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        // This will trigger the debug logging in the service
+        List<MembershipRevenueResponse> result = adminAnalyticsService.getMembershipRevenueBreakdown(
+                startDate != null ? startDate : LocalDate.of(2025, 7, 1),
+                endDate != null ? endDate : LocalDate.of(2025, 7, 30)
+        );
+        
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .success(true)
+                .message("Debug information logged. Check server logs for details. Found " + result.size() + " membership revenue entries.")
+                .data("Check server logs for subscription details")
+                .build());
+    }
+
+    @GetMapping("/debug/payment-statuses")
+    @Operation(summary = "Debug - Check payment status enum values", description = "Debug endpoint to understand payment status values")
+    public ResponseEntity<ApiResponse<String>> debugPaymentStatuses() {
+        // Log enum values to understand what values are being used
+        String enumValues = java.util.Arrays.toString(com.exe201.project.enums.PaymentStatus.values());
+        
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .success(true)
+                .message("Payment status enum values: " + enumValues)
+                .data("Check the enum values and ensure subscriptions use 'PAID' status")
+                .build());
+    }
 }

@@ -143,8 +143,8 @@ public class AppInitConfig {
 
     private List<FeatureRequest> createFeatureRequests() {
         return Arrays.asList(
-                new FeatureRequest("Create Wallet", "Basic ability to create a wallet", "CREATE_WALLET", true),
-                new FeatureRequest("Create Multiple Wallets", "Ability to create multiple wallets (savings, debt, etc.)", "CREATE_MULTIPLE_WALLETS", true),
+                new FeatureRequest("Create SAVINGS Wallets", "Ability to create savings wallets", "CREATE_SAVINGS_WALLETS", true),
+                new FeatureRequest("Create DEPT Wallets", "Ability to create dept wallets", "CREATE_DEPT_WALLETS", true),
                 new FeatureRequest("Unlimited Transactions", "No limit on number of transactions", "UNLIMITED_TRANSACTIONS", true),
                 new FeatureRequest("Advanced Analytics", "Access to advanced financial analytics and reports", "ADVANCED_ANALYTICS", true),
                 new FeatureRequest("Export Data", "Ability to export financial data to CSV/PDF", "EXPORT_DATA", true),
@@ -191,8 +191,8 @@ public class AppInitConfig {
                 0.0, // No expiration
                 DurationType.MONTHLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, 3, true, "Can create 3 wallets (1 Default, 1 Debt, 1 Savings)"),
-                        new MembershipFeatureRequest(2L, 3, true, "Can create different wallet types")
+                        new MembershipFeatureRequest(1L, 1, true, "Can create 1 savings wallet"),
+                        new MembershipFeatureRequest(2L, 1, true, "Can create 1 dept wallet")
                 )
         );
     }
@@ -205,8 +205,8 @@ public class AppInitConfig {
                 1.0, // 1 month
                 DurationType.MONTHLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets"),
-                        new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types"),
+                        new MembershipFeatureRequest(1L, 3, true, "Can create 3 savings wallet"),
+                        new MembershipFeatureRequest(2L, 3, true, "Can create 3 dept wallet"),
                         new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month"),
                         new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories"),
                         new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
@@ -223,8 +223,8 @@ public class AppInitConfig {
                 12.0, // 12 months
                 DurationType.YEARLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, 5, true, "Can create up to 5 wallets"),
-                        new MembershipFeatureRequest(2L, 5, true, "Can create multiple wallet types"),
+                        new MembershipFeatureRequest(1L, 3, true, "Can create 3 savings wallet"),
+                        new MembershipFeatureRequest(2L, 3, true, "Can create 3 dept wallet"),
                         new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month"),
                         new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories"),
                         new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
@@ -241,8 +241,8 @@ public class AppInitConfig {
                 1.0, // 1 month
                 DurationType.MONTHLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, null, true, "Unlimited wallets"),
-                        new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types"),
+                        new MembershipFeatureRequest(1L, null, true, "Can create unlimited savings wallet"),
+                        new MembershipFeatureRequest(2L, null, true, "Can create unlimited dept wallet"),
                         new MembershipFeatureRequest(3L, null, true, "Unlimited transactions"),
                         new MembershipFeatureRequest(4L, null, true, "Full advanced analytics"),
                         new MembershipFeatureRequest(5L, null, true, "Export to all formats"),
@@ -263,8 +263,8 @@ public class AppInitConfig {
                 12.0, // 12 months
                 DurationType.YEARLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, null, true, "Unlimited wallets"),
-                        new MembershipFeatureRequest(2L, null, true, "Unlimited wallet types"),
+                        new MembershipFeatureRequest(1L, null, true, "Can create unlimited savings wallet"),
+                        new MembershipFeatureRequest(2L, null, true, "Can create unlimited dept wallet"),
                         new MembershipFeatureRequest(3L, null, true, "Unlimited transactions"),
                         new MembershipFeatureRequest(4L, null, true, "Full advanced analytics"),
                         new MembershipFeatureRequest(5L, null, true, "Export to all formats"),

@@ -11,14 +11,14 @@ public class MembershipPermissionUtils {
     private final MembershipAccessService membershipAccessService;
     
     public void checkWalletCreationPermission(Long userId) {
-        if (!membershipAccessService.canCreateWallet(userId)) {
-            throw new SecurityException("You don't have permission to create wallets");
+        if (!membershipAccessService.canCreateSavingsWallets(userId)) {
+            throw new SecurityException("You don't have permission to create savings wallets");
         }
     }
     
     public void checkMultipleWalletPermission(Long userId) {
-        if (!membershipAccessService.canCreateMultipleWallets(userId)) {
-            throw new SecurityException("Creating multiple wallets requires Plus or Premium membership");
+        if (!membershipAccessService.canCreateDeptWallets(userId)) {
+            throw new SecurityException("You don't have permission to create dept wallets");
         }
     }
     
