@@ -4,6 +4,7 @@ import com.exe201.project.dto.request.FeatureRequest;
 import com.exe201.project.dto.request.MembershipFeatureRequest;
 import com.exe201.project.dto.request.MembershipRequest;
 import com.exe201.project.entity.Category;
+import com.exe201.project.entity.Feature;
 import com.exe201.project.entity.Role;
 import com.exe201.project.entity.User;
 import com.exe201.project.enums.DurationType;
@@ -22,6 +23,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Configuration
 @Slf4j
@@ -41,8 +44,8 @@ public class AppInitConfig {
     @Bean
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000); // 5 seconds
-        factory.setReadTimeout(30000);   // 30 seconds
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(30000);
         return new RestTemplate(factory);
     }
 
@@ -181,155 +184,208 @@ public class AppInitConfig {
                 log.info("Membership features missing, recreating membership plans...");
                 membershipPlanRepository.deleteAll();
             }
+            waitForFeaturesInitialization();
             initializeMembershipPlans();
             log.info("Membership plans initialized.");
         }
     }
 
-    private void initializeFeatures() {
-        List<FeatureRequest> features = createFeatureRequests();
+    private void waitForFeaturesInitialization() {
+        if (featureRepository.count() == 0) {
+            initializeFeatures();
+            log.info("Features ensured before membership plans.");
+        }
+    }
 
-        for (FeatureRequest feature : features) {
-            try {
-                featureService.createFeature(feature);
-            } catch (Exception e) {
-                log.warn("Feature {} already exists or error occurred: {}", feature.name(), e.getMessage());
+    private void initializeFeatures() {
+        try {
+            List<FeatureRequest> featureRequests = createFeatureRequests();
+
+            for (FeatureRequest featureRequest : featureRequests) {
+                try {
+                    if (featureRepository.findByFeatureKey(featureRequest.featureKey()).isEmpty()) {
+                        featureService.createFeature(featureRequest);
+                        log.info("Created feature: {} ({})", featureRequest.name(), featureRequest.featureKey());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to create feature {}: {}", featureRequest.featureKey(), e.getMessage());
+                }
             }
+            log.info("Features initialization completed. Total features: {}", featureRepository.count());
+        } catch (Exception e) {
+            log.error("Error during features initialization: {}", e.getMessage());
+        }
+    }
+
+    private void initializeMembershipPlans() {
+        try {
+            List<MembershipRequest> membershipRequests = createMembershipRequests();
+
+            for (MembershipRequest membershipRequest : membershipRequests) {
+                try {
+                    membershipPlanService.createMembershipPlan(membershipRequest);
+                } catch (Exception e) {
+                    log.warn("{} plan already exists or error: {}",
+                            membershipRequest.name(),
+                            e.getMessage());
+                }
+            }
+
+            log.info("Membership plans initialization completed. Total plans: {}",
+                    membershipPlanRepository.count());
+        } catch (Exception e) {
+            log.error("Error during membership plans initialization: {}", e.getMessage());
         }
     }
 
     private List<FeatureRequest> createFeatureRequests() {
         return Arrays.asList(
-                new FeatureRequest("Create SAVINGS Wallets", "Ability to create savings wallets", "CREATE_SAVINGS_WALLETS", true),
-                new FeatureRequest("Create DEPT Wallets", "Ability to create dept wallets", "CREATE_DEPT_WALLETS", true),
-                new FeatureRequest("Unlimited Transactions", "No limit on number of transactions", "UNLIMITED_TRANSACTIONS", true),
-                new FeatureRequest("Advanced Analytics", "Access to advanced financial analytics and reports", "ADVANCED_ANALYTICS", true),
-                new FeatureRequest("Export Data", "Ability to export financial data to CSV/PDF", "EXPORT_DATA", true),
-                new FeatureRequest("Priority Support", "Access to priority customer support", "PRIORITY_SUPPORT", true),
-                new FeatureRequest("Custom Categories", "Create unlimited custom transaction categories", "CUSTOM_CATEGORIES", true),
-                new FeatureRequest("Budget Alerts", "Set up budget alerts and notifications", "BUDGET_ALERTS", true),
+                new FeatureRequest("Create Savings Wallets", "Ability to create savings wallets", "CREATE_SAVINGS_WALLETS", true),
+                new FeatureRequest("Create Debt Wallets", "Ability to create debt wallets", "CREATE_DEPT_WALLETS", true),
+                new FeatureRequest("Unlimited Transactions", "Ability to create unlimited transactions", "UNLIMITED_TRANSACTIONS", true),
+                new FeatureRequest("Advanced Analytics", "Access to advanced analytics and reports", "ADVANCED_ANALYTICS", true),
+                new FeatureRequest("Export Data", "Ability to export data to various formats", "EXPORT_DATA", true),
+                new FeatureRequest("Priority Support", "24/7 priority customer support", "PRIORITY_SUPPORT", true),
+                new FeatureRequest("Custom Categories", "Ability to create custom transaction categories", "CUSTOM_CATEGORIES", true),
+                new FeatureRequest("Budget Alerts", "Real-time budget and spending alerts", "BUDGET_ALERTS", true),
                 new FeatureRequest("Financial Goals", "Set and track financial goals", "FINANCIAL_GOALS", true),
-                new FeatureRequest("Multi Currency", "Support for multiple currencies", "MULTI_CURRENCY", true)
+                new FeatureRequest("Multi Currency Support", "Support for multiple currencies", "MULTI_CURRENCY", true)
         );
-    }
-
-    private void initializeMembershipPlans() {
-        try {
-            List<MembershipRequest> membershipPlans = createMembershipRequests();
-
-            for (MembershipRequest plan : membershipPlans) {
-                try {
-                    membershipPlanService.createMembershipPlan(plan);
-                    log.info("{} plan created successfully", plan.name());
-                } catch (Exception e) {
-                    log.warn("{} plan already exists or error: {}", plan.name(), e.getMessage());
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error initializing membership plans: {}", e.getMessage());
-        }
     }
 
     private List<MembershipRequest> createMembershipRequests() {
+        Map<String, Long> featureIds = getFeatureIdMap();
+
         return Arrays.asList(
-                createBasicPlan(),
-                createPlusMonthlyPlan(),
-                createPlusYearlyPlan(),
-                createPremiumMonthlyPlan(),
-                createPremiumYearlyPlan()
+                createBasicPlan(featureIds),
+                createPlusMonthlyPlan(featureIds),
+                createPlusYearlyPlan(featureIds),
+                createPremiumMonthlyPlan(featureIds),
+                createPremiumYearlyPlan(featureIds)
         );
     }
 
-    private MembershipRequest createBasicPlan() {
+    private Map<String, Long> getFeatureIdMap() {
+        List<Feature> features = featureRepository.findAll();
+
+        if (features.isEmpty()) {
+            log.error("No features found in database. Cannot create membership plans.");
+            throw new RuntimeException("Features must be initialized before membership plans");
+        }
+
+        Map<String, Long> featureIds = features.stream()
+                .collect(Collectors.toMap(
+                        Feature::getFeatureKey,
+                        Feature::getId
+                ));
+
+        String[] requiredFeatures = {
+                "CREATE_SAVINGS_WALLETS", "CREATE_DEPT_WALLETS", "UNLIMITED_TRANSACTIONS",
+                "ADVANCED_ANALYTICS", "EXPORT_DATA", "PRIORITY_SUPPORT",
+                "CUSTOM_CATEGORIES", "BUDGET_ALERTS", "FINANCIAL_GOALS", "MULTI_CURRENCY"
+        };
+
+        for (String featureKey : requiredFeatures) {
+            if (!featureIds.containsKey(featureKey)) {
+                log.error("Required feature {} not found in database", featureKey);
+                throw new RuntimeException("Missing required feature: " + featureKey);
+            }
+        }
+
+        log.info("Feature ID mapping validated successfully. Features count: {}", featureIds.size());
+        return featureIds;
+    }
+
+    private MembershipRequest createBasicPlan(Map<String, Long> featureIds) {
         return new MembershipRequest(
                 "Basic",
                 "Basic features for personal use - includes 1 wallet of each type (Default, Debt, Savings)",
                 0.0,
-                0.0, // No expiration
+                0.0,
                 DurationType.MONTHLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, 1, true, "Can create 1 savings wallet"),
-                        new MembershipFeatureRequest(2L, 1, true, "Can create 1 dept wallet")
+                        new MembershipFeatureRequest(featureIds.get("CREATE_SAVINGS_WALLETS"), 1, true, "Can create 1 savings wallet"),
+                        new MembershipFeatureRequest(featureIds.get("CREATE_DEPT_WALLETS"), 1, true, "Can create 1 dept wallet")
                 )
         );
     }
 
-    private MembershipRequest createPlusMonthlyPlan() {
+    private MembershipRequest createPlusMonthlyPlan(Map<String, Long> featureIds) {
         return new MembershipRequest(
                 "Plus",
                 "Enhanced features for power users",
                 29000.0,
-                1.0, // 1 month
+                1.0,
                 DurationType.MONTHLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, 3, true, "Can create 3 savings wallet"),
-                        new MembershipFeatureRequest(2L, 3, true, "Can create 3 dept wallet"),
-                        new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month"),
-                        new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories"),
-                        new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
-                        new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals")
+                        new MembershipFeatureRequest(featureIds.get("CREATE_SAVINGS_WALLETS"), 3, true, "Can create 3 savings wallet"),
+                        new MembershipFeatureRequest(featureIds.get("CREATE_DEPT_WALLETS"), 3, true, "Can create 3 dept wallet"),
+                        new MembershipFeatureRequest(featureIds.get("UNLIMITED_TRANSACTIONS"), 1000, true, "Up to 1000 transactions per month"),
+                        new MembershipFeatureRequest(featureIds.get("CUSTOM_CATEGORIES"), 20, true, "Up to 20 custom categories"),
+                        new MembershipFeatureRequest(featureIds.get("BUDGET_ALERTS"), null, true, "Unlimited budget alerts"),
+                        new MembershipFeatureRequest(featureIds.get("FINANCIAL_GOALS"), 10, true, "Up to 10 financial goals")
                 )
         );
     }
 
-    private MembershipRequest createPlusYearlyPlan() {
+    private MembershipRequest createPlusYearlyPlan(Map<String, Long> featureIds) {
         return new MembershipRequest(
                 "Plus",
                 "Enhanced features for power users - Yearly",
-                290000.0, // 10 months price for yearly subscription
-                12.0, // 12 months
+                290000.0,
+                12.0,
                 DurationType.YEARLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, 3, true, "Can create 3 savings wallet"),
-                        new MembershipFeatureRequest(2L, 3, true, "Can create 3 dept wallet"),
-                        new MembershipFeatureRequest(3L, 1000, true, "Up to 1000 transactions per month"),
-                        new MembershipFeatureRequest(7L, 20, true, "Up to 20 custom categories"),
-                        new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
-                        new MembershipFeatureRequest(9L, 10, true, "Up to 10 financial goals")
+                        new MembershipFeatureRequest(featureIds.get("CREATE_SAVINGS_WALLETS"), 3, true, "Can create 3 savings wallet"),
+                        new MembershipFeatureRequest(featureIds.get("CREATE_DEPT_WALLETS"), 3, true, "Can create 3 dept wallet"),
+                        new MembershipFeatureRequest(featureIds.get("UNLIMITED_TRANSACTIONS"), 1000, true, "Up to 1000 transactions per month"),
+                        new MembershipFeatureRequest(featureIds.get("CUSTOM_CATEGORIES"), 20, true, "Up to 20 custom categories"),
+                        new MembershipFeatureRequest(featureIds.get("BUDGET_ALERTS"), null, true, "Unlimited budget alerts"),
+                        new MembershipFeatureRequest(featureIds.get("FINANCIAL_GOALS"), 10, true, "Up to 10 financial goals")
                 )
         );
     }
 
-    private MembershipRequest createPremiumMonthlyPlan() {
+    private MembershipRequest createPremiumMonthlyPlan(Map<String, Long> featureIds) {
         return new MembershipRequest(
                 "Premium",
                 "Full access to all features",
                 49000.0,
-                1.0, // 1 month
+                1.0,
                 DurationType.MONTHLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, null, true, "Can create unlimited savings wallet"),
-                        new MembershipFeatureRequest(2L, null, true, "Can create unlimited dept wallet"),
-                        new MembershipFeatureRequest(3L, null, true, "Unlimited transactions"),
-                        new MembershipFeatureRequest(4L, null, true, "Full advanced analytics"),
-                        new MembershipFeatureRequest(5L, null, true, "Export to all formats"),
-                        new MembershipFeatureRequest(6L, null, true, "24/7 priority support"),
-                        new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories"),
-                        new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
-                        new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals"),
-                        new MembershipFeatureRequest(10L, null, true, "Multi-currency support")
+                        new MembershipFeatureRequest(featureIds.get("CREATE_SAVINGS_WALLETS"), null, true, "Can create unlimited savings wallet"),
+                        new MembershipFeatureRequest(featureIds.get("CREATE_DEPT_WALLETS"), null, true, "Can create unlimited dept wallet"),
+                        new MembershipFeatureRequest(featureIds.get("UNLIMITED_TRANSACTIONS"), null, true, "Unlimited transactions"),
+                        new MembershipFeatureRequest(featureIds.get("ADVANCED_ANALYTICS"), null, true, "Full advanced analytics"),
+                        new MembershipFeatureRequest(featureIds.get("EXPORT_DATA"), null, true, "Export to all formats"),
+                        new MembershipFeatureRequest(featureIds.get("PRIORITY_SUPPORT"), null, true, "24/7 priority support"),
+                        new MembershipFeatureRequest(featureIds.get("CUSTOM_CATEGORIES"), null, true, "Unlimited custom categories"),
+                        new MembershipFeatureRequest(featureIds.get("BUDGET_ALERTS"), null, true, "Unlimited budget alerts"),
+                        new MembershipFeatureRequest(featureIds.get("FINANCIAL_GOALS"), null, true, "Unlimited financial goals"),
+                        new MembershipFeatureRequest(featureIds.get("MULTI_CURRENCY"), null, true, "Multi-currency support")
                 )
         );
     }
 
-    private MembershipRequest createPremiumYearlyPlan() {
+    private MembershipRequest createPremiumYearlyPlan(Map<String, Long> featureIds) {
         return new MembershipRequest(
                 "Premium",
                 "Full access to all features - Yearly",
-                490000.0, // 10 months price for yearly subscription
-                12.0, // 12 months
+                490000.0,
+                12.0,
                 DurationType.YEARLY,
                 Arrays.asList(
-                        new MembershipFeatureRequest(1L, null, true, "Can create unlimited savings wallet"),
-                        new MembershipFeatureRequest(2L, null, true, "Can create unlimited dept wallet"),
-                        new MembershipFeatureRequest(3L, null, true, "Unlimited transactions"),
-                        new MembershipFeatureRequest(4L, null, true, "Full advanced analytics"),
-                        new MembershipFeatureRequest(5L, null, true, "Export to all formats"),
-                        new MembershipFeatureRequest(6L, null, true, "24/7 priority support"),
-                        new MembershipFeatureRequest(7L, null, true, "Unlimited custom categories"),
-                        new MembershipFeatureRequest(8L, null, true, "Unlimited budget alerts"),
-                        new MembershipFeatureRequest(9L, null, true, "Unlimited financial goals"),
-                        new MembershipFeatureRequest(10L, null, true, "Multi-currency support")
+                        new MembershipFeatureRequest(featureIds.get("CREATE_SAVINGS_WALLETS"), null, true, "Can create unlimited savings wallet"),
+                        new MembershipFeatureRequest(featureIds.get("CREATE_DEPT_WALLETS"), null, true, "Can create unlimited dept wallet"),
+                        new MembershipFeatureRequest(featureIds.get("UNLIMITED_TRANSACTIONS"), null, true, "Unlimited transactions"),
+                        new MembershipFeatureRequest(featureIds.get("ADVANCED_ANALYTICS"), null, true, "Full advanced analytics"),
+                        new MembershipFeatureRequest(featureIds.get("EXPORT_DATA"), null, true, "Export to all formats"),
+                        new MembershipFeatureRequest(featureIds.get("PRIORITY_SUPPORT"), null, true, "24/7 priority support"),
+                        new MembershipFeatureRequest(featureIds.get("CUSTOM_CATEGORIES"), null, true, "Unlimited custom categories"),
+                        new MembershipFeatureRequest(featureIds.get("BUDGET_ALERTS"), null, true, "Unlimited budget alerts"),
+                        new MembershipFeatureRequest(featureIds.get("FINANCIAL_GOALS"), null, true, "Unlimited financial goals"),
+                        new MembershipFeatureRequest(featureIds.get("MULTI_CURRENCY"), null, true, "Multi-currency support")
                 )
         );
     }
