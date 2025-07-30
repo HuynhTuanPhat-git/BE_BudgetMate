@@ -1,7 +1,6 @@
 package com.exe201.project.controller;
 
 import com.exe201.project.dto.response.ApiResponse;
-import com.exe201.project.dto.response.analysis.FinanceAnalysisResponse;
 import com.exe201.project.entity.User;
 import com.exe201.project.enums.AnalysisType;
 import com.exe201.project.service.AnalysisService;
@@ -43,7 +42,7 @@ public class AnalysisController {
         User user = userService.getAuthenticatedUser();
         Object analysis = analysisService.getProfileAnalysis(user.getId(), type);
 
-        return ResponseEntity.ok(ApiResponse.<Object>builder()
+        return ResponseEntity.ok(ApiResponse.builder()
                 .data(analysis)
                 .message("Finance analysis retrieved successfully")
                 .build());

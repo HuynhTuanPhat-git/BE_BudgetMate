@@ -1,13 +1,10 @@
 package com.exe201.project.service.impl;
 
 import com.exe201.project.entity.Subscription;
-import com.exe201.project.entity.User;
-import com.exe201.project.exception.ResourceNotFoundException;
-import com.exe201.project.repository.CreditTransactionRepository;
 import com.exe201.project.repository.SubscriptionRepository;
-import com.exe201.project.repository.UserRepository;
 import com.exe201.project.service.MembershipAccessService;
 import com.exe201.project.service.MembershipPlanService;
+import com.exe201.project.service.UserPurchasedFeatureService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,15 +17,13 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class MembershipAccessServiceImpl implements MembershipAccessService {
 
-    private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final MembershipPlanService membershipPlanService;
-    private final CreditTransactionRepository creditTransactionRepository;
+    private final UserPurchasedFeatureService userPurchasedFeatureService;
 
     @Override
     public boolean hasFeatureAccess(Long userId, String featureKey) {
         Optional<Subscription> activeSubscription = getActiveSubscription(userId);
-
         if (activeSubscription.isEmpty()) {
             return isBasicFeature(featureKey);
         }
@@ -40,18 +35,8 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
             return true;
         }
 
-        boolean hasFeatureInPlan = membershipPlanService.hasFeatureAccess(
+        return membershipPlanService.hasFeatureAccess(
                 subscription.getMembershipPlan().getId(), featureKey);
-
-        if (hasFeatureInPlan) {
-            return true;
-        }
-
-        if ("Basic".equalsIgnoreCase(planName) || "Plus".equalsIgnoreCase(planName)) {
-            return hasUserPurchasedFeature(userId, featureKey);
-        }
-
-        return false;
     }
 
     @Override
@@ -73,11 +58,11 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
                 subscription.getMembershipPlan().getId(), featureKey);
 
         if ("Basic".equals(planName) || "Plus".equals(planName)) {
-            Long purchaseCount = getFeaturePurchaseCount(userId, featureKey);
+            Integer remainingUsage = userPurchasedFeatureService.getRemainingUsage(userId, featureKey);
 
-            if (purchaseCount > 0) {
+            if (remainingUsage > 0) {
                 int currentLimit = (planLimit != null) ? planLimit : 0;
-                return currentLimit + purchaseCount.intValue();
+                return currentLimit + remainingUsage;
             }
         }
 
@@ -104,16 +89,23 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
         return hasFeatureAccess(userId, "EXPORT_DATA");
     }
 
-    private boolean hasUserPurchasedFeature(Long userId, String featureKey) {
-        Long purchaseCount = getFeaturePurchaseCount(userId, featureKey);
-        return purchaseCount > 0;
-    }
+    @Override
+    public Integer getMembershipPlanLimit(Long userId, String featureKey) {
+        Optional<Subscription> activeSubscription = getActiveSubscription(userId);
 
-    private Long getFeaturePurchaseCount(Long userId, String featureKey) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (activeSubscription.isEmpty()) {
+            return getBasicFeatureLimit(featureKey);
+        }
 
-        return creditTransactionRepository.countFeaturePurchasesByUser(user, featureKey.toUpperCase());
+        Subscription subscription = activeSubscription.get();
+        String planName = subscription.getMembershipPlan().getName();
+
+        if ("Premium".equals(planName)) {
+            return null;
+        }
+
+        return membershipPlanService.getFeatureLimit(
+                subscription.getMembershipPlan().getId(), featureKey);
     }
 
     private Optional<Subscription> getActiveSubscription(Long userId) {
@@ -131,9 +123,8 @@ public class MembershipAccessServiceImpl implements MembershipAccessService {
 
     private Integer getBasicFeatureLimit(String featureKey) {
         return switch (featureKey.toUpperCase()) {
-            case "CREATE_WALLET" -> 3;
-            case "CREATE_MULTIPLE_WALLETS" -> 3;
-            case "TRANSACTIONS_PER_MONTH" -> 50;
+            case "CREATE_SAVINGS_WALLETS" -> 1;
+            case "CREATE_DEPT_WALLETS" -> 1;
             default -> 0;
         };
     }

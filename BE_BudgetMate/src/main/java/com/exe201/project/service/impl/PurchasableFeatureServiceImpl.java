@@ -13,7 +13,7 @@ import com.exe201.project.mapper.PurchasableFeatureMapper;
 import com.exe201.project.repository.FeatureRepository;
 import com.exe201.project.repository.PurchasableFeatureRepository;
 import com.exe201.project.repository.SubscriptionRepository;
-import com.exe201.project.service.MembershipAccessService;
+import com.exe201.project.service.MembershipPlanService;
 import com.exe201.project.service.PurchasableFeatureService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,7 +38,7 @@ public class PurchasableFeatureServiceImpl implements PurchasableFeatureService 
     private final PurchasableFeatureRepository purchasableFeatureRepository;
     private final FeatureRepository featureRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final MembershipAccessService membershipAccessService;
+    private final MembershipPlanService membershipPlanService;
     private final PurchasableFeatureMapper purchasableFeatureMapper;
     private final ObjectMapper objectMapper;
 
@@ -94,7 +94,18 @@ public class PurchasableFeatureServiceImpl implements PurchasableFeatureService 
         List<PurchasableFeature> purchasableFeatures = purchasableFeatureRepository.findAvailableForMembershipPlan(currentPlanName);
 
         return purchasableFeatures.stream()
-                .filter(feature -> !membershipAccessService.hasFeatureAccess(userId, feature.getFeature().getFeatureKey()))
+                .filter(feature -> {
+                    String featureKey = feature.getFeature().getFeatureKey();
+
+                    if ("Premium".equals(currentPlanName)) {
+                        return false;
+                    }
+
+                    Integer membershipLimit = membershipPlanService.getFeatureLimit(
+                            activeSubscription.get().getMembershipPlan().getId(), featureKey);
+
+                    return membershipLimit != null;
+                })
                 .map(purchasableFeatureMapper::toPurchasableFeatureResponse)
                 .toList();
     }

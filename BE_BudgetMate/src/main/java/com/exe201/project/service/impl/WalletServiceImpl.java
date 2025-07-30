@@ -2,66 +2,55 @@ package com.exe201.project.service.impl;
 
 import com.exe201.project.dto.request.WalletRequest;
 import com.exe201.project.dto.response.WalletResponse;
-import com.exe201.project.entity.Transaction;
 import com.exe201.project.entity.User;
 import com.exe201.project.entity.Wallets;
 import com.exe201.project.enums.WalletStatus;
 import com.exe201.project.enums.WalletType;
-import com.exe201.project.exception.InsufficientBalanceException;
 import com.exe201.project.exception.OutOfPermissionException;
 import com.exe201.project.exception.ResourceNotFoundException;
 import com.exe201.project.exception.WrongTypeException;
 import com.exe201.project.mapper.WalletMapper;
-import com.exe201.project.repository.TransactionRepository;
-import com.exe201.project.repository.UserRepository;
 import com.exe201.project.repository.WalletRepository;
 import com.exe201.project.service.MembershipAccessService;
+import com.exe201.project.service.UserPurchasedFeatureService;
 import com.exe201.project.service.UserService;
 import com.exe201.project.service.WalletService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class WalletServiceImpl implements WalletService {
     
     private final WalletRepository walletRepository;
-//    private final UserRepository userRepository;
-//    private final TransactionRepository transactionRepository;
     private final WalletMapper walletMapper;
     private final UserService userService;
     private final MembershipAccessService membershipAccessService;
+    private final UserPurchasedFeatureService userPurchasedFeatureService;
 
     @Override
     public WalletResponse createWallet(WalletRequest request) {
-        // Get current user from security context
         User user = userService.getAuthenticatedUser();
-
-        // Get existing wallets for the user
         List<Wallets> existingWallets = walletRepository.findAllByUserId(user.getId());
-        
-        // Validate wallet creation limits
-        validateWalletCreationLimits(user.getId(), request.type(), existingWallets);
+        handleWalletCreationPermissions(user.getId(), request.type(), existingWallets);
 
-        // Create the wallet
         Wallets wallet = new Wallets();
         wallet.setType(request.type());
         wallet.setName(request.name());
-        wallet.setBalance(0.0); // Initial balance is 0
+        wallet.setBalance(0.0);
         wallet.setTargetAmount(request.targetAmount());
         wallet.setInterestRate(request.interestRate() == 0.0 ? 0.0 : request.interestRate());
         wallet.setDeadline(request.deadline());
-        
-        // Handle SAVINGS wallet specific fields
+
         if (request.type().equals(WalletType.SAVINGS)) {
-            // Validate required fields for SAVINGS wallet
             if (request.startDate() == null) {
                 throw new IllegalArgumentException("Start date is required for SAVINGS wallet");
             }
@@ -74,13 +63,11 @@ public class WalletServiceImpl implements WalletService {
             
             wallet.setStartDate(request.startDate());
             wallet.setTermMonths(request.termMonths());
-            
-            // Calculate deadline based on start date and term
+
             wallet.setDeadline(request.startDate().plusMonths(request.termMonths()));
-            wallet.setStatus(WalletStatus.ACTIVE); // SAVINGS wallets start as ACTIVE
+            wallet.setStatus(WalletStatus.ACTIVE);
         }
-        
-        // Handle DEFAULT wallet specific validation
+
         if (request.type().equals(WalletType.DEFAULT)) {
             if ((request.interestRate() != 0) ||
                 request.deadline() != null ||
@@ -88,15 +75,14 @@ public class WalletServiceImpl implements WalletService {
                 request.termMonths() != null) {
                 throw new WrongTypeException("DEFAULT wallet must not have interest rate, deadline, start date, or term months");
             }
-            wallet.setStatus(WalletStatus.ACTIVE); // DEFAULT wallets are always ACTIVE
+            wallet.setStatus(WalletStatus.ACTIVE);
         }
-        
-        // Handle DEBT wallet specific validation
+
         if (request.type().equals(WalletType.DEBT)) {
             if (request.deadline() == null) {
                 throw new IllegalArgumentException("Deadline is required for DEBT wallet");
             }
-            wallet.setStatus(WalletStatus.ACTIVE); // DEBT wallets start as ACTIVE
+            wallet.setStatus(WalletStatus.ACTIVE);
         }
         
         wallet.setUser(user);
@@ -314,36 +300,75 @@ public class WalletServiceImpl implements WalletService {
                     throw new OutOfPermissionException("You can only have 1 DEFAULT wallet per account");
                 }
                 break;
-                
+
             case SAVINGS:
-                if (!membershipAccessService.canCreateSavingsWallets(userId)) {
-                    throw new OutOfPermissionException("You don't have permission to create SAVINGS wallets");
-                }
-                
-                Integer savingsLimit = membershipAccessService.getFeatureLimit(userId, "CREATE_SAVINGS_WALLET");
+                Integer totalLimit = getTotalWalletLimit(userId, "CREATE_SAVINGS_WALLETS");
                 long savingsCount = getWalletCountByType(existingWallets, WalletType.SAVINGS);
-                
-                if (savingsLimit != null && savingsCount >= savingsLimit) {
+
+                if (totalLimit != null && savingsCount >= totalLimit) {
                     throw new OutOfPermissionException(
-                        String.format("You have reached the maximum number of SAVINGS wallets (%d) allowed for your membership plan", savingsLimit)
+                            String.format("You have reached the absolute maximum number of SAVINGS wallets (%d)", totalLimit)
                     );
                 }
                 break;
-                
+
             case DEBT:
-                if (!membershipAccessService.canCreateDeptWallets(userId)) {
-                    throw new OutOfPermissionException("You don't have permission to create DEBT wallets");
-                }
-                
-                Integer deptLimit = membershipAccessService.getFeatureLimit(userId, "CREATE_DEPT_WALLET");
+                Integer deptTotalLimit = getTotalWalletLimit(userId, "CREATE_DEPT_WALLETS");
                 long deptCount = getWalletCountByType(existingWallets, WalletType.DEBT);
-                
-                if (deptLimit != null && deptCount >= deptLimit) {
+
+                if (deptTotalLimit != null && deptCount >= deptTotalLimit) {
                     throw new OutOfPermissionException(
-                        String.format("You have reached the maximum number of DEBT wallets (%d) allowed for your membership plan", deptLimit)
+                            String.format("You have reached the absolute maximum number of DEBT wallets (%d)", deptTotalLimit)
                     );
                 }
                 break;
         }
+    }
+
+    private Integer getTotalWalletLimit(Long userId, String featureKey) {
+        Integer membershipLimit = membershipAccessService.getMembershipPlanLimit(userId, featureKey);
+        Integer purchasedUsage = userPurchasedFeatureService.getRemainingUsage(userId, featureKey);
+
+        if (membershipLimit == null) {
+            return null;
+        }
+
+        return membershipLimit + (purchasedUsage != null ? purchasedUsage : 0);
+    }
+
+    private void handleWalletCreationPermissions(Long userId, WalletType walletType, List<Wallets> existingWallets) {
+        String featureKey = mapWalletTypeToFeatureKey(walletType);
+
+        if (featureKey == null) {
+            return;
+        }
+
+        long currentCount = getWalletCountByType(existingWallets, walletType);
+
+        Integer membershipPlanLimit = membershipAccessService.getMembershipPlanLimit(userId, featureKey);
+
+        if (membershipPlanLimit == null) {
+            return;
+        }
+
+        if (currentCount < membershipPlanLimit) {
+            return;
+        }
+
+        if (userPurchasedFeatureService.hasRemainingUsage(userId, featureKey)) {
+            userPurchasedFeatureService.consumeFeatureUsage(userId, featureKey);
+        } else {
+            throw new OutOfPermissionException(
+                    String.format("You have reached the maximum number of %s wallets (%d) allowed for your membership plan",
+                            walletType.name(), membershipPlanLimit));
+        }
+    }
+
+    private String mapWalletTypeToFeatureKey(WalletType walletType) {
+        return switch (walletType) {
+            case SAVINGS -> "CREATE_SAVINGS_WALLETS";
+            case DEBT -> "CREATE_DEPT_WALLETS";
+            case DEFAULT -> null;
+        };
     }
 }

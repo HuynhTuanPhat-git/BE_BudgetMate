@@ -18,7 +18,12 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     
     Optional<Subscription> findByOrderCode(String orderCode);
     
-    @Query("SELECT s FROM Subscription s WHERE s.user.id = :userId AND s.status = 'ACTIVE' AND s.startDate <= :currentDate AND s.endDate >= :currentDate")
+    @Query("SELECT s " +
+            "FROM Subscription s " +
+            "WHERE s.user.id = :userId " +
+            "AND s.status = 'ACTIVE' " +
+            "AND s.startDate <= :currentDate " +
+            "AND s.endDate >= :currentDate")
     Optional<Subscription> findActiveSubscriptionByUserId(@Param("userId") Long userId, @Param("currentDate") LocalDate currentDate);
     
     @Query("SELECT s FROM Subscription s WHERE s.membershipPlan.id = :membershipPlanId")
