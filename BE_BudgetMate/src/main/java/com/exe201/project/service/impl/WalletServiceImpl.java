@@ -44,41 +44,20 @@ public class WalletServiceImpl implements WalletService {
         // Get current user from security context
         User user = userService.getAuthenticatedUser();
 
-        // Check if user has permission to create wallets
-        if (!membershipAccessService.canCreateWallet(user.getId())) {
-            throw new OutOfPermissionException("You don't have permission to create wallets");
-        }
-
-        // Check wallet limits based on membership
+        // Get existing wallets for the user
         List<Wallets> existingWallets = walletRepository.findAllByUserId(user.getId());
-        Integer walletLimit = membershipAccessService.getFeatureLimit(user.getId(), "CREATE_WALLET");
         
-        // For Basic plan (limit = 3), check if user can create wallet of this specific type
-        if (walletLimit != null && walletLimit == 3) {
-            // Basic plan: check if user already has a wallet of this type
-            boolean hasWalletOfType = existingWallets.stream()
-                    .anyMatch(wallet -> wallet.getType().equals(request.type()));
-            
-            if (hasWalletOfType) {
-                throw new OutOfPermissionException("You already have a " + request.type() + " wallet. Basic plan allows only 1 wallet of each type (DEFAULT, DEBT, SAVINGS).");
-            }
-        } else if (walletLimit != null && existingWallets.size() >= walletLimit) {
-            // For other plans, check total wallet limit
-            throw new OutOfPermissionException("You have reached the maximum number of wallets allowed for your membership plan");
-        }
-        
-        // Check if user can create multiple wallets (non-default wallets)
-        if (!request.type().equals(WalletType.DEFAULT) && !membershipAccessService.canCreateMultipleWallets(user.getId())) {
-            throw new OutOfPermissionException("Creating multiple wallets is only available for Plus and Premium members");
-        }
+        // Validate wallet creation limits
+        validateWalletCreationLimits(user.getId(), request.type(), existingWallets);
 
+        // Create the wallet
         Wallets wallet = new Wallets();
         wallet.setType(request.type());
         wallet.setName(request.name());
         wallet.setBalance(0.0); // Initial balance is 0
         wallet.setTargetAmount(request.targetAmount());
-        wallet.setInterestRate(request.interestRate() == 0.0 ? 0 : request.interestRate());
-        wallet.setDeadline(request.deadline() == null ? null : request.deadline());
+        wallet.setInterestRate(request.interestRate() == 0.0 ? 0.0 : request.interestRate());
+        wallet.setDeadline(request.deadline());
         
         // Handle SAVINGS wallet specific fields
         if (request.type().equals(WalletType.SAVINGS)) {
@@ -98,13 +77,28 @@ public class WalletServiceImpl implements WalletService {
             
             // Calculate deadline based on start date and term
             wallet.setDeadline(request.startDate().plusMonths(request.termMonths()));
+            wallet.setStatus(WalletStatus.ACTIVE); // SAVINGS wallets start as ACTIVE
         }
         
-        if (request.type().equals(WalletType.DEFAULT) && 
-                (request.interestRate() != 0 ||
-                request.deadline() != null)) {
-            throw new WrongTypeException("Default wallet must not have interest rate and deadline");
+        // Handle DEFAULT wallet specific validation
+        if (request.type().equals(WalletType.DEFAULT)) {
+            if ((request.interestRate() != 0) ||
+                request.deadline() != null ||
+                request.startDate() != null ||
+                request.termMonths() != null) {
+                throw new WrongTypeException("DEFAULT wallet must not have interest rate, deadline, start date, or term months");
+            }
+            wallet.setStatus(WalletStatus.ACTIVE); // DEFAULT wallets are always ACTIVE
         }
+        
+        // Handle DEBT wallet specific validation
+        if (request.type().equals(WalletType.DEBT)) {
+            if (request.deadline() == null) {
+                throw new IllegalArgumentException("Deadline is required for DEBT wallet");
+            }
+            wallet.setStatus(WalletStatus.ACTIVE); // DEBT wallets start as ACTIVE
+        }
+        
         wallet.setUser(user);
         wallet.setTransactions(null);
 
@@ -150,12 +144,56 @@ public class WalletServiceImpl implements WalletService {
         }
 
         if (!request.type().equals(wallet.getType())) {
-            throw new WrongTypeException("Can not change wallet type.");
+            throw new WrongTypeException("Cannot change wallet type.");
         }
+        
+        // Validate update based on wallet type
+        switch (wallet.getType()) {
+            case DEFAULT:
+                // DEFAULT wallet restrictions
+                if ((request.interestRate() != 0) ||
+                    request.deadline() != null ||
+                    request.startDate() != null ||
+                    request.termMonths() != null) {
+                    throw new WrongTypeException("DEFAULT wallet must not have interest rate, deadline, start date, or term months");
+                }
+                break;
+                
+            case SAVINGS:
+                // SAVINGS wallet validation
+                if (request.interestRate() <= 0) {
+                    throw new IllegalArgumentException("Interest rate must be greater than 0 for SAVINGS wallet");
+                }
+                if (request.startDate() == null) {
+                    throw new IllegalArgumentException("Start date is required for SAVINGS wallet");
+                }
+                if (request.termMonths() == null || request.termMonths() < 1) {
+                    throw new IllegalArgumentException("Term months must be at least 1 for SAVINGS wallet");
+                }
+                // Update SAVINGS specific fields
+                wallet.setStartDate(request.startDate());
+                wallet.setTermMonths(request.termMonths());
+                // Recalculate deadline based on start date and term
+                wallet.setDeadline(request.startDate().plusMonths(request.termMonths()));
+                break;
+                
+            case DEBT:
+                // DEBT wallet validation
+                if (request.deadline() == null) {
+                    throw new IllegalArgumentException("Deadline is required for DEBT wallet");
+                }
+                wallet.setDeadline(request.deadline());
+                break;
+        }
+        
+        // Update common fields
         wallet.setName(request.name());
         wallet.setTargetAmount(request.targetAmount());
-        wallet.setInterestRate(request.interestRate());
-        wallet.setDeadline(request.deadline());
+        
+        // Only update interest rate if it's not a DEFAULT wallet
+        if (!wallet.getType().equals(WalletType.DEFAULT)) {
+            wallet.setInterestRate(request.interestRate());
+        }
 
         Wallets updatedWallet = walletRepository.save(wallet);
         return walletMapper.toWalletResponse(updatedWallet);
@@ -255,5 +293,57 @@ public class WalletServiceImpl implements WalletService {
         double maturityAmount = principal * (1 + (annualInterestRate / 100.0) * (termMonths / 12.0));
         
         return Math.round(maturityAmount * 100.0) / 100.0; // Round to 2 decimal places
+    }
+    
+    /**
+     * Helper method to get wallet count by type for a user
+     */
+    private long getWalletCountByType(List<Wallets> wallets, WalletType type) {
+        return wallets.stream()
+                .filter(wallet -> wallet.getType().equals(type))
+                .count();
+    }
+    
+    /**
+     * Helper method to validate wallet creation limits
+     */
+    private void validateWalletCreationLimits(Long userId, WalletType type, List<Wallets> existingWallets) {
+        switch (type) {
+            case DEFAULT:
+                if (getWalletCountByType(existingWallets, WalletType.DEFAULT) >= 1) {
+                    throw new OutOfPermissionException("You can only have 1 DEFAULT wallet per account");
+                }
+                break;
+                
+            case SAVINGS:
+                if (!membershipAccessService.canCreateSavingsWallets(userId)) {
+                    throw new OutOfPermissionException("You don't have permission to create SAVINGS wallets");
+                }
+                
+                Integer savingsLimit = membershipAccessService.getFeatureLimit(userId, "CREATE_SAVINGS_WALLET");
+                long savingsCount = getWalletCountByType(existingWallets, WalletType.SAVINGS);
+                
+                if (savingsLimit != null && savingsCount >= savingsLimit) {
+                    throw new OutOfPermissionException(
+                        String.format("You have reached the maximum number of SAVINGS wallets (%d) allowed for your membership plan", savingsLimit)
+                    );
+                }
+                break;
+                
+            case DEBT:
+                if (!membershipAccessService.canCreateDeptWallets(userId)) {
+                    throw new OutOfPermissionException("You don't have permission to create DEBT wallets");
+                }
+                
+                Integer deptLimit = membershipAccessService.getFeatureLimit(userId, "CREATE_DEPT_WALLET");
+                long deptCount = getWalletCountByType(existingWallets, WalletType.DEBT);
+                
+                if (deptLimit != null && deptCount >= deptLimit) {
+                    throw new OutOfPermissionException(
+                        String.format("You have reached the maximum number of DEBT wallets (%d) allowed for your membership plan", deptLimit)
+                    );
+                }
+                break;
+        }
     }
 }

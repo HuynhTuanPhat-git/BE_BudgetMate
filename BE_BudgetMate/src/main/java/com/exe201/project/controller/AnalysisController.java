@@ -13,11 +13,13 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/analysis")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ROLE_USER')")
 @Tag(name = "Financial Analysis", description = "APIs for retrieving financial analysis data for the current user")
 public class AnalysisController {
 
