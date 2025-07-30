@@ -3,11 +3,7 @@ package com.exe201.project.controller;
 import com.exe201.project.dto.request.WalletRequest;
 import com.exe201.project.dto.response.ApiResponse;
 import com.exe201.project.dto.response.WalletResponse;
-import com.exe201.project.entity.User;
-import com.exe201.project.enums.WalletType;
-import com.exe201.project.service.UserService;
 import com.exe201.project.service.WalletService;
-import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @CrossOrigin("*")
 @RestController
@@ -24,11 +19,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WalletController {
     private final WalletService walletService;
-    private final UserService userService;
 
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<ApiResponse<WalletResponse>> createWallet(@Valid @RequestBody WalletRequest request) throws MessagingException {
+    public ResponseEntity<ApiResponse<WalletResponse>> createWallet(@Valid @RequestBody WalletRequest request){
         WalletResponse wallet = walletService.createWallet(request);
         return ResponseEntity.ok(
                 ApiResponse.<WalletResponse>builder()
@@ -61,7 +55,8 @@ public class WalletController {
     }
 
     @PutMapping("/{walletId}")
-    public ResponseEntity<ApiResponse<WalletResponse>> updateWallet(@PathVariable String walletId, @RequestBody @Valid WalletRequest request){
+    public ResponseEntity<ApiResponse<WalletResponse>> updateWallet(@PathVariable String walletId,
+                                                                    @RequestBody @Valid WalletRequest request){
         WalletResponse wallet = walletService.updateWallet(walletId, request);
         return ResponseEntity.ok(
                 ApiResponse.<WalletResponse>builder()
@@ -94,7 +89,6 @@ public class WalletController {
 
     @GetMapping("/total-balance")
     public ResponseEntity<ApiResponse<Double>> getTotalBalance() {
-        // Get current user email from security context
         Double totalBalance = walletService.getTotalBalance();
 
         return ResponseEntity.ok(
@@ -118,7 +112,7 @@ public class WalletController {
     }
 
     @PostMapping("/process-expired-savings")
-    @PreAuthorize("hasRole('ADMIN')") // Only admin can trigger this manually
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<String>> processExpiredSavingsWallets() {
         walletService.processExpiredSavingsWallets();
         return ResponseEntity.ok(
