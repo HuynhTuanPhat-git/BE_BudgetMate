@@ -161,7 +161,6 @@ public class MembershipPlanServiceImpl implements MembershipPlanService {
                     membershipFeature.setLimitValue(featureRequest.limitValue());
                     membershipFeature.setIsEnabled(featureRequest.isEnabled() != null ? featureRequest.isEnabled() : true);
                     membershipFeature.setDescription(featureRequest.description());
-                    
                     return membershipFeatureRepository.save(membershipFeature);
                 })
                 .collect(Collectors.toList());
@@ -179,8 +178,7 @@ public class MembershipPlanServiceImpl implements MembershipPlanService {
                     membershipFeature.setLimitValue(featureRequest.limitValue());
                     membershipFeature.setIsEnabled(featureRequest.isEnabled() != null ? featureRequest.isEnabled() : true);
                     membershipFeature.setDescription(featureRequest.description());
-                    
-                    return membershipFeature; // Don't save here, let the parent manage it
+                    return membershipFeature;
                 })
                 .collect(Collectors.toList());
     }

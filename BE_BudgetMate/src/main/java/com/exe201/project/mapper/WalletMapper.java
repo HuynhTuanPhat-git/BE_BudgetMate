@@ -22,11 +22,14 @@ public class WalletMapper {
         return WalletResponse.builder()
                 .id(wallet.getId())
                 .type(wallet.getType())
+                .status(wallet.getStatus())
                 .name(wallet.getName())
                 .balance(wallet.getBalance())
                 .targetAmount(wallet.getTargetAmount())
                 .interestRate(wallet.getInterestRate())
                 .deadline(wallet.getDeadline())
+                .startDate(wallet.getStartDate())
+                .termMonths(wallet.getTermMonths())
                 .transactions(Collections.emptyList()) // Empty list for basic wallet response
                 .build();
     }
@@ -40,11 +43,14 @@ public class WalletMapper {
         return WalletResponse.builder()
                 .id(wallet.getId())
                 .type(wallet.getType())
+                .status(wallet.getStatus())
                 .name(wallet.getName())
                 .balance(wallet.getBalance())
                 .targetAmount(wallet.getTargetAmount())
                 .interestRate(wallet.getInterestRate())
                 .deadline(wallet.getDeadline())
+                .startDate(wallet.getStartDate())
+                .termMonths(wallet.getTermMonths())
                 .transactions(transactionResponses)
                 .build();
     }

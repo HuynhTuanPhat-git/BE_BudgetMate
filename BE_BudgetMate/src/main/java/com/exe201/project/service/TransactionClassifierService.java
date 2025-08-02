@@ -5,5 +5,4 @@ import com.exe201.project.dto.response.ai.TransactionPredictionTempResponse;
 
 public interface TransactionClassifierService {
     TransactionPredictionTempResponse predictTransaction(String text);
-    boolean isServiceHealthy();
 }

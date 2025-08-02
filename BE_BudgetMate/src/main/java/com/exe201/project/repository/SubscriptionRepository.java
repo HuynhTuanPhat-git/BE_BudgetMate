@@ -18,7 +18,12 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     
     Optional<Subscription> findByOrderCode(String orderCode);
     
-    @Query("SELECT s FROM Subscription s WHERE s.user.id = :userId AND s.status = 'ACTIVE' AND s.startDate <= :currentDate AND s.endDate >= :currentDate")
+    @Query("SELECT s " +
+            "FROM Subscription s " +
+            "WHERE s.user.id = :userId " +
+            "AND s.status = 'ACTIVE' " +
+            "AND s.startDate <= :currentDate " +
+            "AND s.endDate >= :currentDate")
     Optional<Subscription> findActiveSubscriptionByUserId(@Param("userId") Long userId, @Param("currentDate") LocalDate currentDate);
     
     @Query("SELECT s FROM Subscription s WHERE s.membershipPlan.id = :membershipPlanId")
@@ -26,4 +31,20 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     
     @Query("SELECT s FROM Subscription s WHERE s.endDate < :currentDate AND s.status = 'ACTIVE'")
     List<Subscription> findExpiredActiveSubscriptions(@Param("currentDate") LocalDate currentDate);
+    
+    // Admin Analytics Queries
+    @Query("SELECT SUM(s.membershipPlan.price) FROM Subscription s WHERE s.paymentStatus = 'COMPLETED' AND s.startDate BETWEEN :startDate AND :endDate")
+    Double getTotalRevenueBetweenDates(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    
+    @Query("SELECT COUNT(s) FROM Subscription s WHERE s.paymentStatus = 'COMPLETED' AND s.startDate BETWEEN :startDate AND :endDate")
+    Long getTransactionCountBetweenDates(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    
+    @Query("SELECT COUNT(DISTINCT s.user.id) FROM Subscription s WHERE s.paymentStatus = 'COMPLETED' AND s.startDate BETWEEN :startDate AND :endDate")
+    Long getUniqueUserCountBetweenDates(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    
+    @Query("SELECT s FROM Subscription s WHERE s.paymentStatus = 'COMPLETED' AND s.startDate BETWEEN :startDate AND :endDate ORDER BY s.startDate")
+    List<Subscription> findCompletedSubscriptionsBetweenDates(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    
+    @Query("SELECT s.membershipPlan.id, s.membershipPlan.name, SUM(s.membershipPlan.price), COUNT(s) FROM Subscription s WHERE s.paymentStatus = 'COMPLETED' AND s.startDate BETWEEN :startDate AND :endDate GROUP BY s.membershipPlan.id, s.membershipPlan.name")
+    List<Object[]> getMembershipRevenueBreakdown(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 }

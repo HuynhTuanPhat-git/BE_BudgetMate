@@ -25,10 +25,10 @@ public class MembershipFeature {
     Feature feature;
     
     @Column(name = "limit_value")
-    Integer limitValue; // null means unlimited, 0 means not allowed, >0 means specific limit
+    Integer limitValue;
     
     @Column(name = "is_enabled")
     Boolean isEnabled = true;
     
-    String description; // Additional description for this feature in this membership
+    String description;
 }

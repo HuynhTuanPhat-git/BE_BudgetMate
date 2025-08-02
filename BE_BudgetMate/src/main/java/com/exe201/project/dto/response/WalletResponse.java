@@ -1,12 +1,8 @@
 package com.exe201.project.dto.response;
 
 import com.exe201.project.entity.Transaction;
-import com.exe201.project.entity.User;
-import com.exe201.project.entity.Wallets;
+import com.exe201.project.enums.WalletStatus;
 import com.exe201.project.enums.WalletType;
-import jakarta.persistence.Column;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import lombok.Builder;
 
 import java.time.LocalDate;
@@ -19,6 +15,8 @@ public record WalletResponse(
 
         WalletType type,
 
+        WalletStatus status,
+
         String name,
 
         double balance,
@@ -28,6 +26,11 @@ public record WalletResponse(
         double interestRate,
 
         LocalDate deadline,
+
+        // Các field mới cho SAVINGS wallet
+        LocalDate startDate,
+
+        Integer termMonths,
 
         List<Transaction> transactions
 ) {

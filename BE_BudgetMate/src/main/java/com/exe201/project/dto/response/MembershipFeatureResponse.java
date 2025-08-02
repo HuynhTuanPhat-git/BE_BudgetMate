@@ -6,7 +6,7 @@ import lombok.Builder;
 public record MembershipFeatureResponse(
         Long id,
         FeatureResponse feature,
-        Integer limitValue, // null = unlimited, 0 = not allowed, >0 = specific limit
+        Integer limitValue,
         Boolean isEnabled,
         String description
 ) {

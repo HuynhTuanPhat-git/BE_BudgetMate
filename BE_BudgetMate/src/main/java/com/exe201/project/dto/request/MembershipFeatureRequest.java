@@ -8,7 +8,7 @@ public record MembershipFeatureRequest(
         Long featureId,
         
         @Min(value = 0, message = "Limit value must be 0 or greater (0 = not allowed, null = unlimited)")
-        Integer limitValue, // null = unlimited, 0 = not allowed, >0 = specific limit
+        Integer limitValue,
         
         Boolean isEnabled,
         
