@@ -21,18 +21,18 @@ public class FeatureController {
     
     private final FeatureService featureService;
 
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<ApiResponse<FeatureResponse>> createFeature(@Valid @RequestBody FeatureRequest request) {
-        FeatureResponse feature = featureService.createFeature(request);
-        return ResponseEntity.ok(
-                ApiResponse.<FeatureResponse>builder()
-                        .message("Feature created successfully.")
-                        .data(feature)
-                        .build()
-        );
-    }
+//    @PreAuthorize("hasRole('ROLE_ADMIN')")
+//    @PostMapping
+//    @ResponseStatus(HttpStatus.CREATED)
+//    public ResponseEntity<ApiResponse<FeatureResponse>> createFeature(@Valid @RequestBody FeatureRequest request) {
+//        FeatureResponse feature = featureService.createFeature(request);
+//        return ResponseEntity.ok(
+//                ApiResponse.<FeatureResponse>builder()
+//                        .message("Feature created successfully.")
+//                        .data(feature)
+//                        .build()
+//        );
+//    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<FeatureResponse>>> getAllFeatures() {
@@ -89,28 +89,28 @@ public class FeatureController {
         );
     }
 
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<FeatureResponse>> updateFeature(
-            @PathVariable Long id, 
-            @Valid @RequestBody FeatureRequest request) {
-        FeatureResponse feature = featureService.updateFeature(id, request);
-        return ResponseEntity.ok(
-                ApiResponse.<FeatureResponse>builder()
-                        .message("Feature updated successfully.")
-                        .data(feature)
-                        .build()
-        );
-    }
+//    @PreAuthorize("hasRole('ROLE_ADMIN')")
+//    @PutMapping("/{id}")
+//    public ResponseEntity<ApiResponse<FeatureResponse>> updateFeature(
+//            @PathVariable Long id,
+//            @Valid @RequestBody FeatureRequest request) {
+//        FeatureResponse feature = featureService.updateFeature(id, request);
+//        return ResponseEntity.ok(
+//                ApiResponse.<FeatureResponse>builder()
+//                        .message("Feature updated successfully.")
+//                        .data(feature)
+//                        .build()
+//        );
+//    }
 
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteFeature(@PathVariable Long id) {
-        featureService.deleteFeature(id);
-        return ResponseEntity.ok(
-                ApiResponse.<Void>builder()
-                        .message("Feature deleted successfully.")
-                        .build()
-        );
-    }
+//    @PreAuthorize("hasRole('ROLE_ADMIN')")
+//    @DeleteMapping("/{id}")
+//    public ResponseEntity<ApiResponse<Void>> deleteFeature(@PathVariable Long id) {
+//        featureService.deleteFeature(id);
+//        return ResponseEntity.ok(
+//                ApiResponse.<Void>builder()
+//                        .message("Feature deleted successfully.")
+//                        .build()
+//        );
+//    }
 }

@@ -337,29 +337,44 @@ public class WalletServiceImpl implements WalletService {
     }
 
     private void handleWalletCreationPermissions(Long userId, WalletType walletType, List<Wallets> existingWallets) {
+        long currentCount = getWalletCountByType(existingWallets, walletType);
+        
+        // Kiểm tra đặc biệt cho ví DEFAULT - chỉ được có 1 ví DEFAULT duy nhất
+        if (walletType == WalletType.DEFAULT) {
+            if (currentCount >= 1) {
+                throw new OutOfPermissionException("You can only have 1 DEFAULT wallet per account");
+            }
+            return;
+        }
+
         String featureKey = mapWalletTypeToFeatureKey(walletType);
 
         if (featureKey == null) {
             return;
         }
 
-        long currentCount = getWalletCountByType(existingWallets, walletType);
-
+        // Kiểm tra giới hạn membership plan
         Integer membershipPlanLimit = membershipAccessService.getMembershipPlanLimit(userId, featureKey);
 
         if (membershipPlanLimit == null) {
             return;
         }
 
+        // Nếu chưa vượt quá giới hạn membership plan, cho phép tạo
         if (currentCount < membershipPlanLimit) {
             return;
         }
 
+        // Nếu đã vượt quá giới hạn membership plan, kiểm tra xem có mua thêm chức năng không
         if (userPurchasedFeatureService.hasRemainingUsage(userId, featureKey)) {
+            // Người dùng có mua thêm chức năng và còn lượt sử dụng, tiêu thụ 1 lượt
             userPurchasedFeatureService.consumeFeatureUsage(userId, featureKey);
+            log.info("User {} used purchased feature {} to create {} wallet", userId, featureKey, walletType);
         } else {
+            // Không có chức năng đã mua hoặc hết lượt sử dụng
             throw new OutOfPermissionException(
-                    String.format("You have reached the maximum number of %s wallets (%d) allowed for your membership plan",
+                    String.format("You have reached the maximum number of %s wallets (%d) allowed for your membership plan. " +
+                            "Please upgrade your plan or purchase additional wallet creation features.",
                             walletType.name(), membershipPlanLimit));
         }
     }

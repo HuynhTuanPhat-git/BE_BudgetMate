@@ -9,6 +9,7 @@ import com.exe201.project.mapper.NotificationMapper;
 import com.exe201.project.repository.NotificationRepository;
 import com.exe201.project.repository.UserRepository;
 import com.exe201.project.service.INotificationService;
+import com.exe201.project.service.ISseNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -27,6 +28,7 @@ public class NotificationServiceImpl implements INotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final NotificationMapper notificationMapper;
+    private final ISseNotificationService sseNotificationService;
 
     @Override
     @Transactional
@@ -44,8 +46,20 @@ public class NotificationServiceImpl implements INotificationService {
                 .isActive(true)
                 .build();
         Notification savedNotification = notificationRepository.save(notification);
+        
+        // Tạo response
+        NotificationResponse response = notificationMapper.toResponse(savedNotification);
+        
+        // Gửi notification qua SSE nếu user đang online
+        try {
+            sseNotificationService.sendNotificationToUser(user.getId(), response);
+            log.info("Sent SSE notification to user {}", user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to send SSE notification to user {}: {}", user.getId(), e.getMessage());
+        }
+        
         log.info("Created notification with ID {} for user {}", savedNotification.getId(), user.getId());
-        return notificationMapper.toResponse(savedNotification);
+        return response;
     }
 
     @Override

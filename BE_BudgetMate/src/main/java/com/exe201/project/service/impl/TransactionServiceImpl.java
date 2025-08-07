@@ -3,11 +3,13 @@ package com.exe201.project.service.impl;
 
 import com.exe201.project.dto.request.TransactionRequest;
 import com.exe201.project.dto.request.TransactionSummary;
+import com.exe201.project.dto.request.notification.CreateNotificationRequest;
 import com.exe201.project.dto.response.TransactionResponse;
 import com.exe201.project.entity.Category;
 import com.exe201.project.entity.Transaction;
 import com.exe201.project.entity.User;
 import com.exe201.project.entity.Wallets;
+import com.exe201.project.enums.NotificationType;
 import com.exe201.project.enums.WalletType;
 import com.exe201.project.exception.ResourceNotFoundException;
 import com.exe201.project.exception.WrongTypeException;
@@ -16,20 +18,25 @@ import com.exe201.project.repository.CategoryRepository;
 import com.exe201.project.repository.TransactionRepository;
 import com.exe201.project.repository.UserRepository;
 import com.exe201.project.repository.WalletRepository;
+import com.exe201.project.service.INotificationService;
 import com.exe201.project.service.TransactionService;
 import com.exe201.project.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class TransactionServiceImpl implements TransactionService {
     
     private final TransactionRepository transactionRepository;
@@ -38,6 +45,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final CategoryRepository categoryRepository;
     private final TransactionMapper transactionMapper;
     private final UserService userService;
+    private final INotificationService notificationService;
 
     @Override
     public TransactionResponse createTransaction(TransactionRequest request) {
